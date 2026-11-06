@@ -1,3 +1,4 @@
+import { classroomFetch } from "@/lib/classroom/client";
 import { listServerCustomShapes, readServerCustomShape } from "@/lib/customShapesServer";
 import { importLylProject } from "@/lib/lylProject";
 import { packCustomShapesBackup, type CustomShapeBackupItem } from "@/lib/myShapes";
@@ -13,7 +14,7 @@ import { SHARED_PROJECTS_ENDPOINT } from "@/lib/sharedProjectsEndpoint";
 export async function projectThumbnailBlob(thumbnailUrl: string | null | undefined): Promise<Blob | null> {
   if (!thumbnailUrl) return null;
   try {
-    const blob = await (await fetch(thumbnailUrl)).blob();
+    const blob = await (await classroomFetch(thumbnailUrl)).blob();
     if (blob.type !== "image/png" || blob.size === 0 || blob.size > 5 * 1024 * 1024) return null;
     return blob;
   } catch {
@@ -71,7 +72,7 @@ type StoreDesign = { fileName: string; name: string; path?: string; thumbnailUrl
  * as in the browser's backup.
  */
 export async function writeServerBackup(writer: BackupWriter, fallbackName: string, onProgress: (index: number, total: number, name: string) => void) {
-  const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?all=1`, { cache: "no-store" });
+  const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?all=1`, { cache: "no-store" });
   const payload = await response.json() as { projects?: StoreDesign[]; emptyFolders?: string[]; error?: string };
   if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
   // An older server answers `all=1` with the top folder only: a backup of that would quietly leave out the folders.
@@ -84,7 +85,7 @@ export async function writeServerBackup(writer: BackupWriter, fallbackName: stri
     onProgress(index + 1, designs.length, designs[index].name);
     const query = new URLSearchParams({ fileName: designs[index].fileName });
     if (designs[index].path) query.set("path", designs[index].path!);
-    const file = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { cache: "no-store" }).catch(() => null);
+    const file = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { cache: "no-store" }).catch(() => null);
     if (!file?.ok) {
       skipped.push(designs[index].name);
       continue;

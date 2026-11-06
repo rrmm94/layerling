@@ -1,3 +1,4 @@
+import { scopedDatabase } from "@/lib/classroom/client";
 import type { FontData } from "three/examples/jsm/loaders/FontLoader.js";
 import { checkedTypefaceData, isCustomFontId, type CustomTypeface } from "@/lib/customFonts";
 import { registerCustomFont } from "@/lib/textFonts";
@@ -22,7 +23,7 @@ function openDatabase(): Promise<IDBDatabase> {
       reject(new Error("This browser keeps no local database"));
       return;
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(scopedDatabase(DB_NAME), DB_VERSION);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE, { keyPath: "id" });
     };

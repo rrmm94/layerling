@@ -1,3 +1,5 @@
+> **Dieser Fork: Klassen und Kurse** – Anmeldung per Klassencode und Login-Namen, eigene Entwürfe je Schüler und eine Lehrkraft-Verwaltung. [Einrichtung auf Ubuntu mit Docker Compose](docs/CLASSROOM.de.md).
+
 <div align="center">
   <table>
     <tr>

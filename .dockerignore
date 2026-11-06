@@ -22,3 +22,6 @@ playwright-report
 Thumbs.db
 .idea
 .vscode
+
+# Deployment credentials must never enter the build context.
+docker/.env.classroom

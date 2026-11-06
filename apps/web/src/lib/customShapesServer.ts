@@ -1,3 +1,4 @@
+import { classroomFetch } from "@/lib/classroom/client";
 import { CUSTOM_SHAPE_FOLDER_DEPTH, joinFolderPath } from "@/lib/customShapeFolders";
 import { SHARED_PROJECTS_ENDPOINT } from "@/lib/sharedProjectsEndpoint";
 
@@ -58,7 +59,7 @@ export function customShapeFileName(name: string) {
 }
 
 async function listFolder(folder: string | null) {
-  const response = await fetch(query(folder), { cache: "no-store" });
+  const response = await classroomFetch(query(folder), { cache: "no-store" });
   if (!response.ok) throw await failure(response, "Could not list the custom shapes on the server");
   const payload = await response.json() as { projects?: Array<Omit<ServerCustomShape, "folder">>; folders?: Array<{ name: string }> };
   return {
@@ -72,7 +73,7 @@ async function listFolder(folder: string | null) {
  * this installation). A store without the folder yet has no shapes.
  */
 export async function listServerCustomShapes(): Promise<ServerCustomShapes | null> {
-  const rootResponse = await fetch(SHARED_PROJECTS_ENDPOINT, { cache: "no-store" }).catch(() => null);
+  const rootResponse = await classroomFetch(SHARED_PROJECTS_ENDPOINT, { cache: "no-store" }).catch(() => null);
   if (!rootResponse) return null;
   const root = await rootResponse.json().catch(() => ({})) as { enabled?: boolean; folders?: Array<{ name: string }> };
   if (!root.enabled) return null;
@@ -92,7 +93,7 @@ export async function listServerCustomShapes(): Promise<ServerCustomShapes | nul
 }
 
 async function ensureFolder() {
-  const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${new URLSearchParams({ folder: CUSTOM_SHAPES_FOLDER }).toString()}`, { method: "POST" });
+  const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${new URLSearchParams({ folder: CUSTOM_SHAPES_FOLDER }).toString()}`, { method: "POST" });
   // 409: it is there already, which is what we wanted.
   if (!response.ok && response.status !== 409) throw await failure(response, "Could not create the custom shapes folder on the server");
 }
@@ -105,10 +106,10 @@ export async function saveServerCustomShape(name: string, bytes: Uint8Array, thu
   const form = new FormData();
   form.append("project", new Blob([body], { type: LYL_MEDIA_TYPE }), fileName);
   if (thumbnailDataUrl.startsWith("data:image/png")) {
-    const thumbnail = await (await fetch(thumbnailDataUrl)).blob();
+    const thumbnail = await (await classroomFetch(thumbnailDataUrl)).blob();
     if (thumbnail.size > 0) form.append("thumbnail", thumbnail, `${fileName}.png`);
   }
-  const response = await fetch(query(folder, fileName), { method: "POST", headers: { "If-None-Match": "*" }, body: form });
+  const response = await classroomFetch(query(folder, fileName), { method: "POST", headers: { "If-None-Match": "*" }, body: form });
   if (response.status === 409 || response.status === 412) throw new Error(takenMessage);
   if (!response.ok) throw await failure(response, "Could not save the shape on the server");
   const payload = await response.json() as { project?: Omit<ServerCustomShape, "folder"> };
@@ -119,13 +120,13 @@ export async function saveServerCustomShape(name: string, bytes: Uint8Array, thu
 type ServerShapeRef = Pick<ServerCustomShape, "fileName" | "folder" | "revision">;
 
 export async function readServerCustomShape(shape: Pick<ServerCustomShape, "fileName" | "folder">) {
-  const response = await fetch(query(shape.folder, shape.fileName), { cache: "no-store" });
+  const response = await classroomFetch(query(shape.folder, shape.fileName), { cache: "no-store" });
   if (!response.ok) throw await failure(response, "This shape is no longer on the server");
   return new Uint8Array(await response.arrayBuffer());
 }
 
 export async function deleteServerCustomShape(shape: ServerShapeRef) {
-  const response = await fetch(query(shape.folder, shape.fileName), { method: "DELETE", headers: { "If-Match": `"${shape.revision}"` } });
+  const response = await classroomFetch(query(shape.folder, shape.fileName), { method: "DELETE", headers: { "If-Match": `"${shape.revision}"` } });
   if (!response.ok) throw await failure(response, "Could not delete the shape on the server");
 }
 
@@ -133,7 +134,7 @@ export async function deleteServerCustomShape(shape: ServerShapeRef) {
 export async function renameServerCustomShape(shape: ServerShapeRef, name: string, takenMessage: string) {
   const target = customShapeFileName(name);
   if (target === shape.fileName) return;
-  const response = await fetch(query(shape.folder, shape.fileName, { copyTo: target }), { method: "POST", headers: { "If-Match": `"${shape.revision}"` } });
+  const response = await classroomFetch(query(shape.folder, shape.fileName, { copyTo: target }), { method: "POST", headers: { "If-Match": `"${shape.revision}"` } });
   if (response.status === 409) throw new Error(takenMessage);
   if (!response.ok) throw await failure(response, "Could not rename the shape on the server");
   await deleteServerCustomShape(shape);
@@ -142,7 +143,7 @@ export async function renameServerCustomShape(shape: ServerShapeRef, name: strin
 /** Into a folder, or with `null` back to the top; its picture goes along. A name taken there is refused. */
 export async function moveServerCustomShape(shape: ServerShapeRef, folder: string | null, takenMessage: string) {
   if ((shape.folder ?? null) === folder) return;
-  const response = await fetch(query(shape.folder, shape.fileName, { moveTo: folderPath(folder) }), { method: "POST", headers: { "If-Match": `"${shape.revision}"` } });
+  const response = await classroomFetch(query(shape.folder, shape.fileName, { moveTo: folderPath(folder) }), { method: "POST", headers: { "If-Match": `"${shape.revision}"` } });
   if (response.status === 409) throw new Error(takenMessage);
   if (!response.ok) throw await failure(response, "Could not move the shape on the server");
 }
@@ -150,19 +151,19 @@ export async function moveServerCustomShape(shape: ServerShapeRef, folder: strin
 /** A new folder at the top, or inside the folder at `parent`. */
 export async function createServerCustomShapeFolder(name: string, takenMessage: string, parent: string | null = null) {
   await ensureFolder();
-  const response = await fetch(query(parent, undefined, { folder: name.trim() }), { method: "POST" });
+  const response = await classroomFetch(query(parent, undefined, { folder: name.trim() }), { method: "POST" });
   if (response.status === 409) throw new Error(takenMessage);
   if (!response.ok) throw await failure(response, "Could not create the folder on the server");
 }
 
 export async function renameServerCustomShapeFolder(folder: string, name: string, takenMessage: string) {
-  const response = await fetch(query(folder, undefined, { renameTo: name.trim() }), { method: "POST" });
+  const response = await classroomFetch(query(folder, undefined, { renameTo: name.trim() }), { method: "POST" });
   if (response.status === 409) throw new Error(takenMessage);
   if (!response.ok) throw await failure(response, "Could not rename the folder on the server");
 }
 
 /** The folder with every shape in it. */
 export async function deleteServerCustomShapeFolder(folder: string) {
-  const response = await fetch(query(folder, undefined, { deleteFolder: "1", recursive: "1" }), { method: "DELETE" });
+  const response = await classroomFetch(query(folder, undefined, { deleteFolder: "1", recursive: "1" }), { method: "DELETE" });
   if (!response.ok) throw await failure(response, "Could not delete the folder on the server");
 }

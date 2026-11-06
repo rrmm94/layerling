@@ -38,7 +38,8 @@
     "printers:update": "node scripts/generate-printer-presets.mjs",
     "printers:check": "node scripts/check-printer-updates.mjs",
     "ci": "npm run typecheck && npm run test",
-    "mcp:layerling": "node scripts/layerling-mcp-server.mjs"
+    "mcp:layerling": "node scripts/layerling-mcp-server.mjs",
+    "test:ipad": "node scripts/check-classroom-ipad.mjs"
   },
   "dependencies": {
     "@types/three": "^0.184.1",
@@ -64,6 +65,7 @@
     "@types/react-dom": "^19.1.5",
     "jsdom": "^30.1.2",
     "jsqr": "^1.4.0",
+    "playwright": "^1.62.1",
     "typescript": "^5.8.3",
     "vitest": "^5.1.0"
   },

@@ -1,5 +1,8 @@
 "use client";
 
+import { scopedDatabase } from "@/lib/classroom/client";
+
+
 import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, Download, Home, PlusCircle } from "lucide-react";
 import { t } from "@/lib/i18n";
@@ -17,7 +20,7 @@ async function storedProjectPackage(projectId: string): Promise<Uint8Array | nul
   if (typeof window === "undefined" || !window.indexedDB) return null;
   try {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = window.indexedDB.open(PROJECT_SHAPES_DB_NAME);
+      const request = window.indexedDB.open(scopedDatabase(PROJECT_SHAPES_DB_NAME));
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });

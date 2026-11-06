@@ -1,3 +1,4 @@
+import { classroomFetch } from "@/lib/classroom/client";
 import { LYL_MEDIA_TYPE } from "@/lib/lylProject";
 import { SHARED_PROJECTS_ENDPOINT } from "@/lib/sharedProjectsEndpoint";
 
@@ -29,7 +30,7 @@ export function joinServerFolder(path: string, name: string) {
 /** One folder of the server's store, or null when this installation keeps nothing on a server or it did not answer. */
 export async function listServerDesigns(path: string): Promise<ServerDesignFolder | null> {
   const query = storeQuery(path);
-  const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}${query ? `?${query}` : ""}`, { cache: "no-store" }).catch(() => null);
+  const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}${query ? `?${query}` : ""}`, { cache: "no-store" }).catch(() => null);
   if (!response?.ok) return null;
   const payload = await response.json().catch(() => null) as { enabled?: boolean; path?: string; folders?: Array<{ name: string }>; projects?: Array<{ fileName: string; name: string; updatedAt: number }> } | null;
   if (!payload?.enabled) return null;
@@ -42,7 +43,7 @@ export async function listServerDesigns(path: string): Promise<ServerDesignFolde
 
 /** A design's file as it lies on the server, or null when it could not be fetched. */
 export async function fetchServerDesignFile(path: string, fileName: string): Promise<File | null> {
-  const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(path, fileName)}`, { cache: "no-store" }).catch(() => null);
+  const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(path, fileName)}`, { cache: "no-store" }).catch(() => null);
   if (!response?.ok) return null;
   return new File([await response.blob()], fileName, { type: LYL_MEDIA_TYPE });
 }

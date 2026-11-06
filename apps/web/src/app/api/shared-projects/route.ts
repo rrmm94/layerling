@@ -1,3 +1,5 @@
+import { enabled as classroomEnabled, workspaceStudent, workspaceDirectory } from "@/lib/classroom/store";
+import { guardWorkspace } from "@/lib/classroom/guard";
 import { randomUUID } from "crypto";
 import { constants as fsConstants, promises as fs, createReadStream } from "fs";
 import { Readable } from "stream";
@@ -71,7 +73,8 @@ function authenticatedUserFolder(request: Request): string | null {
   return null;
 }
 
-function sharedProjectsDirectory(request?: Request) {
+async function sharedProjectsDirectory(request?: Request) {
+  if (classroomEnabled() && request) return workspaceDirectory((await workspaceStudent(request)).id);
   const configured = (process.env[SHARED_PROJECTS_ENV])?.trim();
   if (!configured) return null;
   const base = path.resolve(configured);
@@ -298,8 +301,8 @@ function disabledResponse() {
   );
 }
 
-export async function GET(request: Request) {
-  const root = sharedProjectsDirectory(request);
+async function handleGET(request: Request) {
+  const root = await sharedProjectsDirectory(request);
   if (!root) return disabledResponse();
   try {
     await ensureSharedRoot(root);
@@ -876,8 +879,8 @@ async function saveSettings(root: string, requested: string, request: Request) {
   return NextResponse.json({ saved: true }, { headers: { "Cache-Control": "no-store" } });
 }
 
-export async function DELETE(request: Request) {
-  const root = sharedProjectsDirectory(request);
+async function handleDELETE(request: Request) {
+  const root = await sharedProjectsDirectory(request);
   if (!root) return NextResponse.json({ error: "Shared project storage is disabled" }, { status: 404 });
   if (!sameOriginRequest(request)) return NextResponse.json({ error: "Shared projects only accept same-origin deletes" }, { status: 403 });
 
@@ -936,8 +939,8 @@ export async function DELETE(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  const root = sharedProjectsDirectory(request);
+async function handlePOST(request: Request) {
+  const root = await sharedProjectsDirectory(request);
   if (!root) return NextResponse.json({ error: "Shared project storage is disabled" }, { status: 404 });
   if (!sameOriginRequest(request)) return NextResponse.json({ error: "Shared projects only accept same-origin saves" }, { status: 403 });
 
@@ -1049,3 +1052,7 @@ export async function POST(request: Request) {
     if (lockPath) await fs.unlink(lockPath).catch(() => undefined);
   }
 }
+
+export const GET = guardWorkspace(handleGET);
+export const POST = guardWorkspace(handlePOST);
+export const DELETE = guardWorkspace(handleDELETE);

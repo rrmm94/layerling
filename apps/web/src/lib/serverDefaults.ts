@@ -45,7 +45,7 @@ export function parseDefaultTheme(value: unknown): AppThemePreference | null {
 export function serverDefaultsFromEnvironment(environment: Record<string, string | undefined>): ServerDefaults {
   return {
     theme: parseDefaultTheme(environment[DEFAULT_THEME_ENV]),
-    newDesignsOnServer: parseNewDesignsOnServer(environment[NEW_DESIGNS_ON_SERVER_ENV]),
+    newDesignsOnServer: environment.LAYERLING_CLASSROOM === "true" ? "always" : parseNewDesignsOnServer(environment[NEW_DESIGNS_ON_SERVER_ENV]),
     simpleMode: parseSimpleMode(environment[SIMPLE_MODE_ENV]),
   };
 }

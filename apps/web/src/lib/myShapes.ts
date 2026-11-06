@@ -1,3 +1,4 @@
+import { scopedDatabase } from "@/lib/classroom/client";
 import { createLocalId } from "@/lib/localIds";
 import { CUSTOM_SHAPE_FOLDER_DEPTH, FOLDER_PATH_SEPARATOR, folderAncestry, folderDescendantIds } from "@/lib/customShapeFolders";
 import { storeFolderNameProblem } from "@/lib/storeFolderName";
@@ -103,7 +104,7 @@ function openDatabase(): Promise<IDBDatabase> {
       reject(new Error("This browser keeps no local database"));
       return;
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(scopedDatabase(DB_NAME), DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE, { keyPath: "id" });

@@ -601,18 +601,33 @@ export function SecondaryToolbar({
     const root = document.documentElement;
     const apply = () => {
       const styles = getComputedStyle(root);
-      const title = parseFloat(styles.getPropertyValue("--editor-toolbar-title-height")) || 44;
+      const titleRow = content.closest(".secondary-toolbar")?.querySelector<HTMLElement>(".toolbar-title-row");
+      const title = titleRow?.offsetHeight || parseFloat(styles.getPropertyValue("--editor-toolbar-title-height")) || 44;
       const minimum = parseFloat(styles.getPropertyValue("--editor-toolbar-tools-height")) || 76;
       const tools = content.offsetHeight;
       // A hidden editor measures nothing; it keeps the one-row height.
-      root.style.setProperty("--editor-toolbar-height", `${Math.round(title + Math.max(minimum, tools))}px`);
+      const ribbon = Math.round(title + Math.max(minimum, tools));
+      const toolbar = content.closest<HTMLElement>(".secondary-toolbar");
+      // Classroom identity/logout sits above the ribbon. Preserve wrapped rows on tablets.
+      const top = toolbar?.getBoundingClientRect().top ?? 0;
+      root.style.setProperty("--editor-ribbon-height", `${ribbon}px`);
+      root.style.setProperty("--editor-toolbar-height", `${Math.round(top + ribbon)}px`);
     };
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(content);
+    const titleRow = content.closest(".secondary-toolbar")?.querySelector(".toolbar-title-row");
+    if (titleRow) observer.observe(titleRow);
+    window.addEventListener("resize", apply);
+    window.visualViewport?.addEventListener("resize", apply);
+    window.visualViewport?.addEventListener("scroll", apply);
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", apply);
+      window.visualViewport?.removeEventListener("resize", apply);
+      window.visualViewport?.removeEventListener("scroll", apply);
       root.style.removeProperty("--editor-toolbar-height");
+      root.style.removeProperty("--editor-ribbon-height");
     };
   }, []);
   const [visibilityOpen, setVisibilityOpen] = useState(false);

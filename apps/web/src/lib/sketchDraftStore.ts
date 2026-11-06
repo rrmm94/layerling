@@ -1,3 +1,4 @@
+import { scopedDatabase } from "@/lib/classroom/client";
 /*
  * The sketch that is still open in a design, kept in this browser in a database of its own (#1146). A reload took it:
  * the design saves its bodies, but a sketch that is not finished is no body yet, so the image traced over and the
@@ -38,7 +39,7 @@ function openDatabase(): Promise<IDBDatabase> {
       reject(new Error("This browser keeps no local database"));
       return;
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(scopedDatabase(DB_NAME), DB_VERSION);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE, { keyPath: "id" });
     };
