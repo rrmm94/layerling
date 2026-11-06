@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setClassroomWorkspace, editorStorage, scopedDatabase, scopedKey, workspaceUrl, workspacePageUrl, classroomFetch } from "@/lib/classroom/client";
+import { setClassroomWorkspace, editorStorage, scopedDatabase, scopedKey, workspaceUrl, workspacePageUrl, classroomFetch, registerClassroomSaveGuard, flushClassroomBeforeLogout } from "@/lib/classroom/client";
 afterEach(() => { setClassroomWorkspace(null); localStorage.clear(); vi.unstubAllGlobals(); });
 describe("per-student browser state", () => {
   it("separates projects, clipboard and recovery databases on a shared device", () => {
@@ -20,6 +20,13 @@ describe("per-student browser state", () => {
     expect(workspacePageUrl("/?editor=1&project=a")).toBe("/?editor=1&project=a&student=ben");
     expect(workspaceUrl("/api/project-thumbnail?projectId=a")).toBe("/api/project-thumbnail?projectId=a&student=ben");
     await classroomFetch("https://example.com/update"); expect(fetch.mock.calls[1]).toEqual(["https://example.com/update", undefined]);
+  });
+  it("waits for the editor save guard and preserves save failures for logout", async () => {
+    const save = vi.fn().mockResolvedValue(undefined); const unregister = registerClassroomSaveGuard(save);
+    await flushClassroomBeforeLogout(); expect(save).toHaveBeenCalledOnce(); unregister();
+    await flushClassroomBeforeLogout(); expect(save).toHaveBeenCalledOnce();
+    const remove = registerClassroomSaveGuard(async () => { throw new Error("not saved"); });
+    await expect(flushClassroomBeforeLogout()).rejects.toThrow("not saved"); remove();
   });
   it("leaves the original non-classroom workflow unchanged", () => {
     expect(editorStorage()).toBe(localStorage); expect(scopedKey("layerling.projects")).toBe("layerling.projects"); expect(scopedDatabase("shapes")).toBe("shapes");

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
 import { ArrowRight, BookOpen, Box, Check, ChevronLeft, Copy, GraduationCap, KeyRound, Link as LinkIcon, LogOut, Plus, Settings2, ShieldCheck, Trash2, Users, X } from "lucide-react";
-import { setClassroomWorkspace } from "@/lib/classroom/client";
+import { setClassroomWorkspace, flushClassroomBeforeLogout } from "@/lib/classroom/client";
 import type { Course } from "@/lib/classroom/store";
 import "./classroom.css";
 
@@ -21,6 +21,8 @@ export function ClassroomShell({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [error, setError] = useState("");
   const [expired, setExpired] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_STATIC_EXPORT === "true") { setIdentity({ enabled: false }); return; }
     const student = new URLSearchParams(location.search).get("student");
@@ -45,9 +47,9 @@ export function ClassroomShell({ children }: { children: ReactNode }) {
   if (!identity.enabled) return children;
   if (!identity.session) return <Login />;
   if (expired) return <main className="school"><div className="school-empty"><h1>Bitte erneut anmelden</h1><p>Die Sitzung ist abgelaufen oder auf diesem Gerät wurde ein anderer Zugang angemeldet.</p><button onClick={() => location.assign("/")}>Zur Anmeldung</button></div></main>;
-  const logout = async () => { try { await api({ action: "logout" }); location.assign("/"); } catch (e) { setError((e as Error).message); } };
-  if (identity.session.role === "admin" && !identity.student) return <Admin onLogout={logout} />;
-  return <><div className="school-workspace-bar"><span><GraduationCap size={18} /><strong>{identity.student?.name}</strong><span> / {identity.student?.courseName}</span></span><div>{identity.session.role === "admin" && <a href="/">← Kursverwaltung</a>}<button onClick={logout}><LogOut size={15} /> Abmelden</button></div></div><div className="school-editor-container">{children}</div></>;
+  const logout = async () => { setLogoutBusy(true); setLogoutError(""); try { await flushClassroomBeforeLogout(); await api({ action: "logout" }); location.assign("/"); } catch (e) { setLogoutError((e as Error).message); } finally { setLogoutBusy(false); } };
+  if (identity.session.role === "admin" && !identity.student) return <><Admin onLogout={logout} />{logoutError && <div className="school-logout-error" role="alert">{logoutError}</div>}</>;
+  return <><div className="school-workspace-bar"><span><GraduationCap size={18} /><strong>{identity.student?.name}</strong><span> / {identity.student?.courseName}</span></span><div>{identity.session.role === "admin" && <a href="/">← Kursverwaltung</a>}<button onClick={logout} disabled={logoutBusy}><LogOut size={15} /> {logoutBusy ? "Wird gespeichert …" : "Abmelden"}</button></div></div>{logoutError && <div className="school-logout-error" role="alert">{logoutError}</div>}<div className="school-editor-container">{children}</div></>;
 }
 
 function Login() {

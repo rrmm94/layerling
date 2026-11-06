@@ -38,3 +38,9 @@ export function workspacePageUrl(url: string) {
   parsed.searchParams.set("student", workspace);
   return parsed.pathname + parsed.search;
 }
+let beforeLogout: (() => Promise<void>) | null = null;
+export function registerClassroomSaveGuard(save: () => Promise<void>) {
+  beforeLogout = save;
+  return () => { if (beforeLogout === save) beforeLogout = null; };
+}
+export async function flushClassroomBeforeLogout() { await beforeLogout?.(); }

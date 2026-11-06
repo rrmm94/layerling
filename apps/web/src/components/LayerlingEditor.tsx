@@ -1,6 +1,6 @@
 "use client";
 
-import { editorStorage, scopedKey } from "@/lib/classroom/client";
+import { editorStorage, scopedKey, classroomWorkspace, registerClassroomSaveGuard } from "@/lib/classroom/client";
 
 import { deleteSketchDraft, loadSketchDraft, saveSketchDraft, sketchHasWork, type SketchDraft } from "@/lib/sketchDraftStore";
 import { normalizeNarrowStart, normalizeSlopeCurve, normalizeSlopeSide, shapeSupportsNarrow, shapeSupportsSlope } from "@/lib/slopeAlong";
@@ -16009,6 +16009,25 @@ export function LayerlingEditor({
 
   const saveToServerRef = useRef(saveToServerNow);
   saveToServerRef.current = saveToServerNow;
+
+  useEffect(() => {
+    if (!classroomWorkspace()) return;
+    return registerClassroomSaveGuard(async () => {
+      if (!serverFileName) {
+        if (shapesRef.current.length) throw new Error("Dieser Entwurf ist noch nicht auf dem Server gespeichert. Bitte zuerst auf dem Server speichern.");
+        return;
+      }
+      // Logout must not revoke the cookie while an autosave is still pending.
+      serverSavePendingRef.current = true;
+      await saveToServerRef.current();
+      const deadline = Date.now() + 15_000;
+      while (serverSavePendingRef.current || serverSaveRunningRef.current) {
+        if (serverSaveStoppedRef.current || Date.now() > deadline) throw new Error("Der Entwurf konnte noch nicht gespeichert werden. Du bleibst angemeldet. Bitte die Speicherwarnung im Editor prüfen.");
+        await new Promise(resolve => window.setTimeout(resolve, 100));
+      }
+    });
+  }, [serverFileName]);
+
 
   useEffect(() => {
     if (!serverFileName) return;

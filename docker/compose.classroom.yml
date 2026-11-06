@@ -6,7 +6,7 @@ services:
       context: ../
       dockerfile: docker/Dockerfile
       args:
-        NEXT_PUBLIC_SOURCE_CODE_URL: ${LAYERLING_SOURCE_CODE_URL:-https://github.com/rrmm94/layerling/tree/codex/classroom}
+        NEXT_PUBLIC_SOURCE_CODE_URL: ${LAYERLING_SOURCE_CODE_URL:-https://github.com/rrmm94/layerling}
     restart: unless-stopped
     ports:
       - "${LAYERLING_BIND_ADDRESS:-127.0.0.1}:${LAYERLING_PORT:-3000}:3000"
