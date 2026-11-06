@@ -15,7 +15,7 @@ async function api(body: Record<string, unknown>) {
   if (!response.ok) throw new Error(data.error || "Die Anfrage ist fehlgeschlagen.");
   return data;
 }
-const Source = () => <a href={process.env.NEXT_PUBLIC_SOURCE_CODE_URL || "https://github.com/rrmm94/layerling/tree/codex/classroom"} target="_blank" rel="noreferrer">Quellcode · AGPL-3.0</a>;
+const Source = () => <a href={process.env.NEXT_PUBLIC_SOURCE_CODE_URL || "https://github.com/rrmm94/layerling"} target="_blank" rel="noreferrer">Quellcode · AGPL-3.0</a>;
 const Brand = () => <a className="school-brand" href="/"><img src="/assets/layerling/layerling-logo.svg" alt="" /><span>layerling<span className="school-brand-sub">KLASSENZIMMER</span></span></a>;
 
 export function ClassroomShell({ children }: { children: ReactNode }) {

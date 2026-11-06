@@ -1,4 +1,6 @@
 # Build THIS fork; do not use the upstream image, which has no classroom extension.
+name: layerling
+
 services:
   layerling:
     image: layerling-classroom:local
@@ -9,7 +11,7 @@ services:
         NEXT_PUBLIC_SOURCE_CODE_URL: ${LAYERLING_SOURCE_CODE_URL:-https://github.com/rrmm94/layerling}
     restart: unless-stopped
     ports:
-      - "${LAYERLING_BIND_ADDRESS:-127.0.0.1}:${LAYERLING_PORT:-3000}:3000"
+      - "${LAYERLING_BIND_ADDRESS:-127.0.0.1}:${LAYERLING_PORT:-4006}:3000"
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"

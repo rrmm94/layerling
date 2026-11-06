@@ -1,6 +1,6 @@
 # layerling für Klassen und Kurse
 
-Die Erweiterung liegt im Branch `codex/classroom` dieses Forks.
+Die Erweiterung ist im Branch `main` dieses Forks enthalten.
 
 Diese Fork-Erweiterung ergänzt den vorhandenen CAD-Editor um eine deutschsprachige Kursverwaltung für eine Lehrkraft. Sie benötigt den Node-Server; ein statischer Export mit PHP unterstützt den Kursmodus nicht.
 
@@ -19,8 +19,9 @@ Diese Fork-Erweiterung ergänzt den vorhandenen CAD-Editor um eine deutschsprach
 Voraussetzungen: Docker Engine mit Compose-Plugin, Git, ausreichend Platz für Entwürfe und Backups. Für den ersten Build sind Node-Abhängigkeiten und CAD-WASM-Dateien größer; etwa 4 GB freier Arbeitsspeicher sind empfehlenswert. Der laufende Einzelserver benötigt keine zusätzliche Datenbank.
 
 ```bash
-git clone --branch codex/classroom https://github.com/rrmm94/layerling.git
-cd layerling
+mkdir -p /opt/stacks
+git clone --branch main https://github.com/rrmm94/layerling.git /opt/stacks/layerling
+cd /opt/stacks/layerling
 cp docker/.env.classroom.example docker/.env.classroom
 chmod 600 docker/.env.classroom
 # Datei mit einem Editor öffnen: langes, eigenes Passwort und deine HTTPS-Adresse eintragen.
@@ -36,21 +37,23 @@ Der Compose-Aufbau baut diesen Fork lokal. Ein `ghcr.io/henmedia/layerling`-Imag
 
 ### HTTPS
 
-Standardmäßig ist Port 3000 nur am Ubuntu-Host erreichbar. Ein Reverse Proxy wie Caddy auf demselben Host kann ihn unter deiner Domain veröffentlichen:
+Die Repository- und Stack-Dateien liegen unter `/opt/stacks/layerling`. Die Befehle zur Einrichtung benötigen Schreibrechte unter `/opt/stacks` (gegebenenfalls als root ausführen). Der Compose-Projektname ist fest `layerling`; die Nutzdaten liegen im benannten Docker-Volume `layerling_classroom-data`.
+
+Standardmäßig ist **Host-Port 4006** nur am Ubuntu-Host erreichbar; im Container bleibt die Anwendung auf Port 3000. Ein Reverse Proxy wie Caddy auf demselben Host kann ihn unter deiner Domain veröffentlichen:
 
 ```caddyfile
 cad.deine-schule.example {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:4006
 }
 ```
 
 DNS, Caddy und dessen HTTPS-Zertifikat auf deinem Server einrichten. In `docker/.env.classroom` `LAYERLING_ALLOWED_ORIGINS=https://cad.deine-schule.example` setzen. Host und Forwarding-Header korrekt weiterreichen. Bei einem Reverse Proxy in einem anderen Container dessen Docker-Netzwerk verwenden; dessen `127.0.0.1` ist nicht der Ubuntu-Host.
 
-Für einen reinen HTTP-Test im vertrauenswürdigen LAN `LAYERLING_BIND_ADDRESS=0.0.0.0` und `LAYERLING_COOKIE_SECURE=false` setzen und erneut `up -d` ausführen. Für Zugriff über das Internet HTTPS und `LAYERLING_COOKIE_SECURE=true` verwenden. Secure-Cookies werden über gewöhnliches LAN-HTTP nicht gesendet.
+Für einen reinen HTTP-Test im vertrauenswürdigen LAN `LAYERLING_BIND_ADDRESS=0.0.0.0` und `LAYERLING_COOKIE_SECURE=false` setzen und erneut `up -d` ausführen. Danach ist die Instanz unter `http://<Ubuntu-Server-IP>:4006` erreichbar. Für Zugriff über das Internet HTTPS und `LAYERLING_COOKIE_SECURE=true` verwenden. Secure-Cookies werden über gewöhnliches LAN-HTTP nicht gesendet.
 
 ### Daten, Backups und Updates
 
-Das benannte Volume `<compose-projekt>_classroom-data` enthält:
+Das benannte Volume `layerling_classroom-data` enthält:
 
 - `classroom.json`: Kurse, Login-Namen und Passwort-/Code-Hashes;
 - `projects/<zufällige-schüler-id>/`: Entwürfe und Vorschauen, außerhalb des öffentlich ausgelieferten Verzeichnisses;
@@ -65,9 +68,9 @@ Updates: zuerst Backup erstellen, dann Änderungen aus deinem Fork übernehmen u
 Dienst stoppen und Volume sichern. Dann mit dem untenstehenden Skript auf dem Host einen neuen scrypt-Hash erzeugen und atomar in der vorhandenen Datenbank speichern. Das Skript liest das neue Passwort verdeckt über die Terminaleingabe, verlangt mindestens 12 Zeichen und entfernt bestehende Sitzungen. Node.js 22.18+ auf dem Host ist dafür erforderlich; der Dienst muss währenddessen gestoppt bleiben:
 
 ```bash
-# Den tatsächlichen Mountpoint zeigt docker volume inspect <projekt>_classroom-data.
+# Den tatsächlichen Mountpoint zeigt docker volume inspect layerling_classroom-data.
 # Auf dem Ubuntu-Host mit Zugriff auf dieses Volume:
-sudo node scripts/reset-classroom-admin.mjs /var/lib/docker/volumes/<projekt>_classroom-data/_data
+sudo node scripts/reset-classroom-admin.mjs /var/lib/docker/volumes/layerling_classroom-data/_data
 # Anschließend Compose wieder starten; das gespeicherte Passwort gilt sofort.
 ```
 
