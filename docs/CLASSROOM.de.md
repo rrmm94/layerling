@@ -87,3 +87,38 @@ Sitzungen verwenden HttpOnly-/SameSite-Cookies, Schreibzugriffe prüfen die Herk
 ## Screenshots
 
 Die Bilder in [screenshots/classroom](screenshots/classroom) zeigen ausschließlich lokale Beispieldaten, keine produktiven Schülerzugänge: [Anmeldung](screenshots/classroom/01-anmeldung.png), [Kursverwaltung](screenshots/classroom/02-kursverwaltung.png), [Einladungslink](screenshots/classroom/03-einladungslink.png), [Editor](screenshots/classroom/04-schueler-editor.png), [Entwurf weitergeben](screenshots/classroom/05-entwurf-weitergeben.png).
+
+## Nutzung auf dem iPad
+
+Die Kursoberfläche unterstützt Hoch- und Querformat sowie die geteilte Ansicht. Bei schmalem Fenster erscheint **Kurs auswählen** oberhalb der Übersicht. Eingabefelder verwenden auf Touch-Geräten mindestens 16 Pixel Schrift, Schaltflächen mindestens 44 Pixel große Trefferflächen. Die Anmeldung und Verwaltungsdialoge berücksichtigen die sichtbare Safari-Fläche, wenn die Bildschirmtastatur geöffnet ist.
+
+Im Editor:
+
+- Eine Form antippen und anschließend auf die Arbeitsebene tippen, um sie abzulegen.
+- Einen Finger über die leere Arbeitsebene ziehen, um die Ansicht zu drehen. Zwei Finger zoomen und verschieben die Ansicht.
+- Zum Mehrfachauswählen einen Körper antippen und den dann angezeigten Mehrfachauswahl-Knopf verwenden. Ein langer Druck öffnet das Kontextmenü.
+- Die linke Ansichtsleiste lässt sich auf niedrigen Bildschirmen mit dem Finger scrollen. Ihr oberer Griff klappt sie ein und verschiebt sie.
+- Im Hochformat bleibt der Entwurfsname in einer eigenen Zeile sichtbar. Wenn Werkzeuge umbrechen, beginnt die Arbeitsebene unter der gesamten Werkzeugleiste.
+- Den vereinfachten Modus aus der Compose-Konfiguration für jüngere Kinder beibehalten. Bei sehr großen importierten Modellen hängt die Leistung auch vom Arbeitsspeicher des iPads ab.
+
+Safari → Teilen → **Zum Home-Bildschirm** bietet mehr Platz ohne die normale Browserleiste. Der Klassenbetrieb mit Anmeldung und Server-Speicherung benötigt weiterhin eine Verbindung zum eigenen Server. Verwende für den Zugriff von anderen Geräten die HTTPS-Adresse des Servers.
+
+### Wiederholbare Touch-Prüfung
+
+Playwright ist eine reine Entwicklungsabhängigkeit. Gegen eine **lokale Testinstanz** mit aktivem Kursmodus:
+
+```bash
+npm ci
+npx playwright install chromium
+# In einem zweiten Terminal die Testinstanz mit den unter „Entwicklung“ beschriebenen Einstellungen starten.
+# Das Test-Admin-Passwort wird aus einer lokalen Datei gelesen, nicht als Argument übergeben:
+LAYERLING_TEST_ADMIN_PASSWORD_FILE=/absoluter/pfad/test-admin-password npm run test:ipad
+```
+
+Standardadresse ist `http://127.0.0.1:3000`; `LAYERLING_TEST_URL` erlaubt einen anderen lokalen Port. Mit `LAYERLING_TEST_CHROMIUM=/usr/bin/chromium` kann ein bereits installiertes Chromium verwendet werden. Screenshots landen in `test-results/ipad`; `LAYERLING_TEST_SCREENSHOTS` wählt einen anderen Ausgabeordner. Die Prüfung legt eigene Testkurse und Zugänge an und entfernt diese am Ende. Ihre Entwurfsdateien verbleiben gemäß der allgemeinen Löschregel im Test-Datenordner. Nicht gegen produktive Schülerdaten ausführen.
+
+Geprüft werden Touch-Ereignisse in 768×1024, 1024×700 (Querformat mit Browserleisten), 744×1133 und 507×768 (geteilte Ansicht), Anmeldung, Kursauswahl, Dialoge bei verkleinertem sichtbarem Bereich, Finger-Platzierung, Ein-Finger-Drehung, Zwei-Finger-Zoom, serverseitige CAD-Speicherung, Abmelden und das Weitergeben einer Kopie. Der Tastaturfall modelliert `visualViewport`, ohne eine echte iPad-Tastatur zu behaupten.
+
+Diese Prüfung verwendet Chromium mit Touch- und iPad-Abmessungen. Sie ersetzt keinen Test auf einem echten iPad mit Safari oder Apple Pencil. Ein zusätzlicher WebKit-Test konnte in der Cloud-Umgebung wegen gesperrter Browser-Download-Domains nicht ausgeführt werden.
+
+[Beispielbilder der iPad-Oberfläche](screenshots/classroom-ipad) zeigen lokale, bereits entfernte Testzugänge. Das Eigenschaftenfenster rechts kann bei wenig Platz eingeklappt oder an seinem Kopfbereich verschoben werden.
