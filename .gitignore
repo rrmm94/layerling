@@ -100,3 +100,6 @@ apps/web/public/fonts/japanese/
 
 # Built European Portuguese user guide.
 apps/web/public/guia-pt-pt/
+
+# Local classroom deployment credentials (never commit these).
+docker/.env.classroom

@@ -1,4 +1,7 @@
 "use client";
+
+import { editorStorage, scopedKey } from "@/lib/classroom/client";
+
 import { deleteSketchDraft, loadSketchDraft, saveSketchDraft, sketchHasWork, type SketchDraft } from "@/lib/sketchDraftStore";
 import { normalizeNarrowStart, normalizeSlopeCurve, normalizeSlopeSide, shapeSupportsNarrow, shapeSupportsSlope } from "@/lib/slopeAlong";
 import { AlertTriangle, X } from "lucide-react";
@@ -486,12 +489,12 @@ function readSharedClipboard(): ClipboardPayload<WorkplaneShape> | null {
     return null;
   }
   try {
-    const stored = window.localStorage.getItem(SHARED_CLIPBOARD_STORAGE_KEY);
+    const stored = editorStorage().getItem(SHARED_CLIPBOARD_STORAGE_KEY);
     if (!stored) return null;
     // A large copy from an older layerling may still sit here and crowd out
     // the project list; the tab and the system clipboard carry large copies.
     if (stored.length > LOCAL_CLIPBOARD_LIMIT) {
-      window.localStorage.removeItem(SHARED_CLIPBOARD_STORAGE_KEY);
+      editorStorage().removeItem(SHARED_CLIPBOARD_STORAGE_KEY);
       return null;
     }
     return parseClipboardShapes(stored);
@@ -547,13 +550,13 @@ function writeSharedClipboard(shapes: WorkplaneShape[], copiedAt: number) {
     if (serialized.length > LOCAL_CLIPBOARD_LIMIT) {
       // Too large for the small local storage: an older copy must not stay
       // behind there either, or another tab would paste that instead.
-      window.localStorage.removeItem(SHARED_CLIPBOARD_STORAGE_KEY);
+      editorStorage().removeItem(SHARED_CLIPBOARD_STORAGE_KEY);
     } else {
-      window.localStorage.setItem(SHARED_CLIPBOARD_STORAGE_KEY, serialized);
+      editorStorage().setItem(SHARED_CLIPBOARD_STORAGE_KEY, serialized);
     }
   } catch {
     try {
-      window.localStorage.removeItem(SHARED_CLIPBOARD_STORAGE_KEY);
+      editorStorage().removeItem(SHARED_CLIPBOARD_STORAGE_KEY);
     } catch {
       // storage unavailable - the tab and the system clipboard still hold the copy
     }
@@ -3806,7 +3809,7 @@ export function LayerlingEditor({
     };
     adoptShared();
     const onStorage = (event: StorageEvent) => {
-      if (event.key === SHARED_CLIPBOARD_STORAGE_KEY) {
+      if (event.key === scopedKey(SHARED_CLIPBOARD_STORAGE_KEY)) {
         adoptShared();
       }
     };
@@ -10772,7 +10775,7 @@ export function LayerlingEditor({
   /** The settings the last cutter was built with, so the next one starts from them; the defaults where none are kept. */
   const storedCookieCutterSettings = useCallback((): CookieCutterSettings => {
     try {
-      const stored = JSON.parse(window.localStorage.getItem(COOKIE_CUTTER_SETTINGS_STORAGE_KEY) ?? "null") as Partial<CookieCutterSettings> | null;
+      const stored = JSON.parse(editorStorage().getItem(COOKIE_CUTTER_SETTINGS_STORAGE_KEY) ?? "null") as Partial<CookieCutterSettings> | null;
       return { ...COOKIE_CUTTER_SETTINGS_DEFAULTS, ...(stored && typeof stored === "object" ? stored : {}) };
     } catch {
       return COOKIE_CUTTER_SETTINGS_DEFAULTS;
@@ -10804,7 +10807,7 @@ export function LayerlingEditor({
     }
     const { support, plate, fillet, imprint, mirror } = cookieCutterTool;
     try {
-      window.localStorage.setItem(COOKIE_CUTTER_SETTINGS_STORAGE_KEY, JSON.stringify({ support, plate, fillet, imprint, mirror }));
+      editorStorage().setItem(COOKIE_CUTTER_SETTINGS_STORAGE_KEY, JSON.stringify({ support, plate, fillet, imprint, mirror }));
     } catch {
       // Not kept for next time, but built all the same.
     }

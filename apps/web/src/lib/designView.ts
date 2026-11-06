@@ -1,3 +1,4 @@
+import { editorStorage } from "@/lib/classroom/client";
 /**
  * Where the camera looked in a design, kept with the design so it opens the way it was left (#220).
  * The view is not part of the design's undo history and saving it never saves the design: it is
@@ -37,7 +38,7 @@ export function normalizeDesignView(value: unknown): DesignView | null {
 export function readDesignView(projectId: string | null | undefined): DesignView | null {
   if (!projectId) return null;
   try {
-    const stored = window.localStorage.getItem(DESIGN_VIEW_STORAGE_PREFIX + projectId);
+    const stored = editorStorage().getItem(DESIGN_VIEW_STORAGE_PREFIX + projectId);
     return stored ? normalizeDesignView(JSON.parse(stored)) : null;
   } catch {
     return null;
@@ -47,8 +48,8 @@ export function readDesignView(projectId: string | null | undefined): DesignView
 export function writeDesignView(projectId: string | null | undefined, view: DesignView | null) {
   if (!projectId) return;
   try {
-    if (view) window.localStorage.setItem(DESIGN_VIEW_STORAGE_PREFIX + projectId, JSON.stringify(view));
-    else window.localStorage.removeItem(DESIGN_VIEW_STORAGE_PREFIX + projectId);
+    if (view) editorStorage().setItem(DESIGN_VIEW_STORAGE_PREFIX + projectId, JSON.stringify(view));
+    else editorStorage().removeItem(DESIGN_VIEW_STORAGE_PREFIX + projectId);
   } catch {
     // Without storage the design simply opens in the standard view, as it always did.
   }
@@ -75,7 +76,7 @@ export function readSavedViews(projectId: string | null | undefined): SavedDesig
   const empty = SAVED_VIEW_KEYS.map(() => null);
   if (!projectId) return empty;
   try {
-    const stored = window.localStorage.getItem(SAVED_VIEWS_STORAGE_PREFIX + projectId);
+    const stored = editorStorage().getItem(SAVED_VIEWS_STORAGE_PREFIX + projectId);
     return (stored ? normalizeSavedViews(JSON.parse(stored)) : null) ?? empty;
   } catch {
     return empty;
@@ -86,8 +87,8 @@ export function writeSavedViews(projectId: string | null | undefined, views: Sav
   if (!projectId) return;
   try {
     const kept = normalizeSavedViews(views);
-    if (kept) window.localStorage.setItem(SAVED_VIEWS_STORAGE_PREFIX + projectId, JSON.stringify(kept));
-    else window.localStorage.removeItem(SAVED_VIEWS_STORAGE_PREFIX + projectId);
+    if (kept) editorStorage().setItem(SAVED_VIEWS_STORAGE_PREFIX + projectId, JSON.stringify(kept));
+    else editorStorage().removeItem(SAVED_VIEWS_STORAGE_PREFIX + projectId);
   } catch {
     // Without storage a saved view lasts until the design is left.
   }
@@ -103,7 +104,7 @@ const START_VIEW_STORAGE_KEY = "layerling.editor.startView";
 export function readStartView(): DesignView | null {
   if (typeof window === "undefined") return null;
   try {
-    const stored = window.localStorage.getItem(START_VIEW_STORAGE_KEY);
+    const stored = editorStorage().getItem(START_VIEW_STORAGE_KEY);
     return stored ? normalizeDesignView(JSON.parse(stored)) : null;
   } catch {
     return null;
@@ -113,8 +114,8 @@ export function readStartView(): DesignView | null {
 export function writeStartView(view: DesignView | null) {
   try {
     const kept = normalizeDesignView(view);
-    if (kept) window.localStorage.setItem(START_VIEW_STORAGE_KEY, JSON.stringify(kept));
-    else window.localStorage.removeItem(START_VIEW_STORAGE_KEY);
+    if (kept) editorStorage().setItem(START_VIEW_STORAGE_KEY, JSON.stringify(kept));
+    else editorStorage().removeItem(START_VIEW_STORAGE_KEY);
   } catch {
     // Without storage new designs keep opening in the standard view.
   }

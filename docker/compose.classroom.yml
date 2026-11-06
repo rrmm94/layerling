@@ -1,0 +1,37 @@
+# Build THIS fork; do not use the upstream image, which has no classroom extension.
+services:
+  layerling:
+    image: layerling-classroom:local
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        NEXT_PUBLIC_SOURCE_CODE_URL: ${LAYERLING_SOURCE_CODE_URL:-https://github.com/rrmm94/layerling/tree/codex/classroom}
+    restart: unless-stopped
+    ports:
+      - "${LAYERLING_BIND_ADDRESS:-127.0.0.1}:${LAYERLING_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      LAYERLING_CLASSROOM: "true"
+      LAYERLING_CLASSROOM_DATA_DIR: /var/lib/layerling
+      LAYERLING_ADMIN_PASSWORD: ${LAYERLING_ADMIN_PASSWORD:?Set a strong admin password in docker/.env.classroom}
+      LAYERLING_COOKIE_SECURE: ${LAYERLING_COOKIE_SECURE:-true}
+      LAYERLING_ALLOWED_ORIGINS: ${LAYERLING_ALLOWED_ORIGINS:-}
+      LAYERLING_DEFAULT_THEME: light
+      LAYERLING_SIMPLE_MODE: "always"
+    volumes:
+      - classroom-data:/var/lib/layerling
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/classroom').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+volumes:
+  classroom-data:

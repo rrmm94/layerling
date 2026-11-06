@@ -1,3 +1,4 @@
+import { scopedDatabase } from "@/lib/classroom/client";
 /*
  * The card pictures of the designs in this browser, in a database of their own. They used to sit in the list of
  * designs in localStorage, and enough of them filled it up until the list could not be saved (#656). A picture
@@ -16,7 +17,7 @@ function openDatabase(): Promise<IDBDatabase> {
       reject(new Error("This browser keeps no local database"));
       return;
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(scopedDatabase(DB_NAME), DB_VERSION);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE, { keyPath: "id" });
     };

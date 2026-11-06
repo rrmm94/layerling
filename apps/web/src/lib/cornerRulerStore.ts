@@ -1,3 +1,4 @@
+import { editorStorage } from "@/lib/classroom/client";
 import { horizontalPlacementWorkplane, normalizePlacementWorkplane, type PlacementPoint, type PlacementWorkplane } from "@/lib/placementWorkplane";
 import { cornerRulerFrameForWorkplane, type CornerRulerAxisModes, type CornerRulerFrame, type CornerRulerMode } from "@/lib/rulerDimensions";
 
@@ -81,7 +82,7 @@ export function savedCornerRuler<T extends SavedCornerRuler>(ruler: T): SavedCor
 export function readCornerRulers(projectId: string | null | undefined): SavedCornerRuler[] {
   if (!projectId) return [];
   try {
-    const stored = window.localStorage.getItem(CORNER_RULERS_STORAGE_PREFIX + projectId);
+    const stored = editorStorage().getItem(CORNER_RULERS_STORAGE_PREFIX + projectId);
     return (stored ? normalizeSavedCornerRulers(JSON.parse(stored)) : null) ?? [];
   } catch {
     return [];
@@ -92,8 +93,8 @@ export function writeCornerRulers(projectId: string | null | undefined, rulers: 
   if (!projectId) return;
   try {
     const kept = normalizeSavedCornerRulers(rulers?.map(savedCornerRuler) ?? null);
-    if (kept) window.localStorage.setItem(CORNER_RULERS_STORAGE_PREFIX + projectId, JSON.stringify(kept));
-    else window.localStorage.removeItem(CORNER_RULERS_STORAGE_PREFIX + projectId);
+    if (kept) editorStorage().setItem(CORNER_RULERS_STORAGE_PREFIX + projectId, JSON.stringify(kept));
+    else editorStorage().removeItem(CORNER_RULERS_STORAGE_PREFIX + projectId);
   } catch {
     // Without storage the framing square lasts until the design is left.
   }
@@ -102,7 +103,7 @@ export function writeCornerRulers(projectId: string | null | undefined, rulers: 
 /** Whether a new design starts with a framing square at the origin (#1386): a setting of this browser, off until it is switched on. */
 export function readStartWithCornerRuler(): boolean {
   try {
-    return window.localStorage.getItem(START_WITH_CORNER_RULER_STORAGE_KEY) === "true";
+    return editorStorage().getItem(START_WITH_CORNER_RULER_STORAGE_KEY) === "true";
   } catch {
     return false;
   }
@@ -110,8 +111,8 @@ export function readStartWithCornerRuler(): boolean {
 
 export function writeStartWithCornerRuler(on: boolean) {
   try {
-    if (on) window.localStorage.setItem(START_WITH_CORNER_RULER_STORAGE_KEY, "true");
-    else window.localStorage.removeItem(START_WITH_CORNER_RULER_STORAGE_KEY);
+    if (on) editorStorage().setItem(START_WITH_CORNER_RULER_STORAGE_KEY, "true");
+    else editorStorage().removeItem(START_WITH_CORNER_RULER_STORAGE_KEY);
   } catch {
     // Without storage new designs start without one, as before.
   }

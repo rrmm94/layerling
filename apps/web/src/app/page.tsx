@@ -1,5 +1,9 @@
 "use client";
 
+import { ClassroomShell } from "@/components/classroom/ClassroomShell";
+import { editorStorage, scopedDatabase, scopedKey, classroomFetch, workspaceUrl, workspacePageUrl, classroomWorkspace } from "@/lib/classroom/client";
+
+
 import { requestPersistentStorage } from "@/lib/persistentStorage";
 import { clearDesignOpening, forgetDesignOpening, markDesignOpening, takeUnfinishedOpening } from "@/lib/openingDesignGuard";
 import { keepShownSelection, localDesignKey, selectionHasStale, serverDesignKey, toggleDesignSelection } from "@/lib/designSelection";
@@ -241,8 +245,8 @@ type BackupProgress = { index: number; total: number; name: string };
 
 function writeBackupProgress(progress: BackupProgress | null) {
   try {
-    if (progress) window.localStorage.setItem(BACKUP_PROGRESS_KEY, JSON.stringify(progress));
-    else window.localStorage.removeItem(BACKUP_PROGRESS_KEY);
+    if (progress) editorStorage().setItem(BACKUP_PROGRESS_KEY, JSON.stringify(progress));
+    else editorStorage().removeItem(BACKUP_PROGRESS_KEY);
   } catch {
     // Without storage the backup still works; only the note after a reload is missing.
   }
@@ -251,8 +255,8 @@ function writeBackupProgress(progress: BackupProgress | null) {
 /** A backup that was cut off by a reload, read once: the note goes with it. */
 function takeInterruptedBackup(): BackupProgress | null {
   try {
-    const raw = window.localStorage.getItem(BACKUP_PROGRESS_KEY);
-    window.localStorage.removeItem(BACKUP_PROGRESS_KEY);
+    const raw = editorStorage().getItem(BACKUP_PROGRESS_KEY);
+    editorStorage().removeItem(BACKUP_PROGRESS_KEY);
     const value = raw ? JSON.parse(raw) as Partial<BackupProgress> : null;
     return value && typeof value.name === "string" && typeof value.index === "number" && typeof value.total === "number" ? value as BackupProgress : null;
   } catch {
@@ -392,7 +396,7 @@ function openProjectShapesConnection() {
       return;
     }
 
-    const request = window.indexedDB.open(PROJECT_SHAPES_DB_NAME, 3);
+    const request = window.indexedDB.open(scopedDatabase(PROJECT_SHAPES_DB_NAME), 3);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains(PROJECT_SHAPES_STORE_NAME)) {
@@ -416,7 +420,7 @@ let projectShapesMigration: Promise<unknown> | null = null;
 
 async function openProjectShapesDb() {
   if (typeof window !== "undefined" && window.indexedDB) {
-    projectShapesMigration ??= migrateLegacyProjectShapes(window.indexedDB, openProjectShapesConnection, [
+    projectShapesMigration ??= classroomWorkspace() ? Promise.resolve() : migrateLegacyProjectShapes(window.indexedDB, openProjectShapesConnection, [
       PROJECT_SHAPES_STORE_NAME,
       PROJECT_SHAPE_RESOURCES_STORE_NAME,
     ]).catch(() => undefined);
@@ -816,7 +820,7 @@ function readStoredProjects() {
   const legacyShapes: Record<string, ProjectShapeCacheEntry> = {};
   if (typeof window === "undefined") return { projects: [] as DashboardProject[], legacyShapes };
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(PROJECTS_STORAGE_KEY) ?? "[]") as StoredDashboardProject[];
+    const parsed = JSON.parse(editorStorage().getItem(PROJECTS_STORAGE_KEY) ?? "[]") as StoredDashboardProject[];
     const projects = parsed
       .filter((project) => typeof project.id === "string" && typeof project.name === "string")
       .map((project, index) => {
@@ -917,7 +921,7 @@ function mergeProjectsForStorage(projects: DashboardProject[]) {
 function readDesignFolders(): DesignFolder[] {
   if (typeof window === "undefined") return [];
   try {
-    return normalizeDesignFolders(JSON.parse(window.localStorage.getItem(DESIGN_FOLDERS_STORAGE_KEY) ?? "[]"));
+    return normalizeDesignFolders(JSON.parse(editorStorage().getItem(DESIGN_FOLDERS_STORAGE_KEY) ?? "[]"));
   } catch {
     return [];
   }
@@ -947,7 +951,7 @@ function projectNameFromFileName(fileName: string) {
   return fileName.replace(/\.[^.]+$/, "").trim() || "Imported design";
 }
 
-export default function Home() {
+function Home() {
   useLanguage();
   const [mounted, setMounted] = useState(false);
   const [view, setView] = useState<AppView>("dashboard");
@@ -969,7 +973,7 @@ export default function Home() {
   const [serverNewDesigns, setServerNewDesigns] = useState<NewDesignsOnServerSetting | null>(null);
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(NEW_DESIGNS_ON_SERVER_KEY);
+      const stored = editorStorage().getItem(NEW_DESIGNS_ON_SERVER_KEY);
       setNewDesignsChoice(stored === "1" ? true : stored === "0" ? false : null);
     } catch {
       // A browser that refuses storage keeps the answer for this visit only.
@@ -980,7 +984,7 @@ export default function Home() {
   const changeNewDesignsOnServer = useCallback((on: boolean) => {
     setNewDesignsChoice(on);
     try {
-      window.localStorage.setItem(NEW_DESIGNS_ON_SERVER_KEY, on ? "1" : "0");
+      editorStorage().setItem(NEW_DESIGNS_ON_SERVER_KEY, on ? "1" : "0");
     } catch {
       // See above.
     }
@@ -1064,12 +1068,12 @@ export default function Home() {
     setSharedProjectsLoading(true);
     try {
       const query = wanted ? `?path=${encodeURIComponent(wanted)}` : "";
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}${query}`, { cache: "no-store" });
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}${query}`, { cache: "no-store" });
       const payload = await response.json() as { enabled?: boolean; path?: string; total?: number; folders?: SharedFolder[]; projects?: SharedProject[]; error?: string };
       sharedEnabledRef.current = Boolean(payload.enabled);
       setSharedProjectsEnabled(Boolean(payload.enabled));
       if (typeof payload.total === "number") setSharedTotal(payload.total);
-      setSharedProjects(Array.isArray(payload.projects) ? payload.projects : []);
+      setSharedProjects(Array.isArray(payload.projects) ? payload.projects.map(project => ({ ...project, ...(project.thumbnailUrl ? { thumbnailUrl: workspaceUrl(project.thumbnailUrl) } : {}) })) : []);
       setSharedFolders(Array.isArray(payload.folders) ? payload.folders : []);
       // A folder that is gone takes us back to where it was, not to an error.
       const landed = typeof payload.path === "string" ? payload.path : "";
@@ -1109,7 +1113,7 @@ export default function Home() {
       setSharedSearchLoading(true);
       void (async () => {
         try {
-          const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?search=${encodeURIComponent(term)}`, {
+          const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?search=${encodeURIComponent(term)}`, {
             cache: "no-store",
             signal: controller.signal,
           });
@@ -1138,18 +1142,18 @@ export default function Home() {
 
   useEffect(() => {
     // Vor allem anderen: Einstellungen aus der Zeit vor der Umbenennung holen.
-    migrateLegacyStorageKeys(window.localStorage);
+    if (!classroomWorkspace()) migrateLegacyStorageKeys(editorStorage());
     // Die erste Darstellung ist immer englisch, damit sie zum ausgelieferten
     // HTML passt; die gespeicherte oder erkannte Sprache greift direkt danach.
     setLanguage(detectLanguage(), false);
     // Left behind by the retired Challenges tutorials; nothing reads it now.
-    window.localStorage.removeItem("layerling.activeChallengeTutorial");
+    editorStorage().removeItem("layerling.activeChallengeTutorial");
     // The design name stays in the toolbar; the old switch is gone.
-    window.localStorage.removeItem("layerling.showProjectNameInToolbar");
-    const storedTheme = readStoredAppTheme(window.localStorage);
+    editorStorage().removeItem("layerling.showProjectNameInToolbar");
+    const storedTheme = readStoredAppTheme(editorStorage());
     // A first visit takes the theme the server suggests (LAYERLING_DEFAULT_THEME), if it has one;
     // a browser that already has a theme on record keeps it. A static copy has no server to ask.
-    const themeOnRecord = hasStoredAppTheme(window.localStorage);
+    const themeOnRecord = hasStoredAppTheme(editorStorage());
     if (!STATIC_EXPORT_BUILD) {
       void fetchServerDefaults().then((defaults) => {
         serverNewDesignsRef.current = defaults.newDesignsOnServer;
@@ -1161,7 +1165,7 @@ export default function Home() {
       serverAnswer.defaults();
     }
     // "Make default" kept in the server store comes back to a browser that forgot it.
-    void syncWorkspaceDefaultWithServer(window.localStorage).finally(serverAnswer.settings);
+    void syncWorkspaceDefaultWithServer(editorStorage()).finally(serverAnswer.settings);
     setAppTheme(storedTheme, false);
     setThemePreference(storedTheme);
     const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -1180,14 +1184,14 @@ export default function Home() {
       let recovered: DashboardProject[] = [];
       let recoveredBefore = true;
       try {
-        recoveredBefore = window.localStorage.getItem(LOST_DESIGNS_RECOVERED_KEY) !== null;
+        recoveredBefore = editorStorage().getItem(LOST_DESIGNS_RECOVERED_KEY) !== null;
       } catch {
         // Without localStorage there is no list to have lost either.
       }
       if (!recoveredBefore) {
         recovered = await recoverOrphanedProjects(storedProjects).catch(() => []);
         try {
-          window.localStorage.setItem(LOST_DESIGNS_RECOVERED_KEY, String(Date.now()));
+          editorStorage().setItem(LOST_DESIGNS_RECOVERED_KEY, String(Date.now()));
         } catch {
           // Then it looks again next time, which is what it did before.
         }
@@ -1215,11 +1219,11 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const requestedProjectId = params.get("project");
     const requestedProject = requestedProjectId ? storedProjects.find((project) => project.id === requestedProjectId) : undefined;
-    if (params.get("editor") === "1" && requestedProject && takeUnfinishedOpening(window.localStorage, requestedProject.id)) {
+    if (params.get("editor") === "1" && requestedProject && takeUnfinishedOpening(editorStorage(), requestedProject.id)) {
       // The last opening of this design never finished, most likely the browser ran out of memory:
       // reopening it straight away would crash the page again, so the start page comes first (#1157).
       setDashboardNotice(t("notice.designDidNotOpen", { name: requestedProject.name }));
-      window.history.replaceState(null, "", "/");
+      window.history.replaceState(null, "", workspacePageUrl("/"));
     } else if (params.has("codexBooleanCase") || params.get("editor") === "1") {
       if (requestedProject) {
         setActiveProjectId(requestedProject.id);
@@ -1232,11 +1236,11 @@ export default function Home() {
   }, [startEditorTransition]);
 
   // And a default saved here goes to the store, for the other browsers.
-  useEffect(() => sendSavedWorkspaceDefaultsToServer(window.localStorage), []);
+  useEffect(() => sendSavedWorkspaceDefaultsToServer(editorStorage()), []);
 
   // Closed or reloaded in the usual way: nothing crashed while a design opened (#1157).
   useEffect(() => {
-    const forget = () => forgetDesignOpening(window.localStorage);
+    const forget = () => forgetDesignOpening(editorStorage());
     window.addEventListener("pagehide", forget);
     return () => window.removeEventListener("pagehide", forget);
   }, []);
@@ -1259,7 +1263,7 @@ export default function Home() {
       setResolvedTheme(resolveAppTheme(themePreference, media.matches));
       applyAppTheme(themePreference, media.matches);
     };
-    storeAppTheme(window.localStorage, themePreference);
+    storeAppTheme(editorStorage(), themePreference);
     applyCurrentTheme();
     if (themePreference !== "system") return;
     media.addEventListener("change", applyCurrentTheme);
@@ -1274,7 +1278,7 @@ export default function Home() {
   // The place with more designs gets the first tab, and opens first unless a tab was already picked.
   useEffect(() => {
     if (!mounted || serverTabFirst !== null || !sharedProjectsEnabled || sharedTotal === null) return;
-    const first = sharedTotal > projects.filter((project) => !project.sharedProject).length;
+    const first = Boolean(classroomWorkspace()) || sharedTotal > projects.filter((project) => !project.sharedProject).length;
     setServerTabFirst(first);
     if (first && !tabChosenRef.current) setDashboardSection("shared");
   }, [mounted, projects, serverTabFirst, sharedProjectsEnabled, sharedTotal]);
@@ -1293,7 +1297,7 @@ export default function Home() {
     if (projectsJsonRef.current === serialized) return;
     // A list that does not fit leaves the one before it in place (#656). The browser's own text
     // ("QuotaExceededError ... exceeded the quota") helps nobody.
-    if (!writeProjectList(window.localStorage, PROJECTS_STORAGE_KEY, serialized)) {
+    if (!writeProjectList(editorStorage(), PROJECTS_STORAGE_KEY, serialized)) {
       setDashboardNotice(t("notice.projectListSaveFailed"));
       return;
     }
@@ -1323,7 +1327,7 @@ export default function Home() {
   useEffect(() => {
     if (!mounted) return;
     const onStorage = (event: StorageEvent) => {
-      if (event.key !== PROJECTS_STORAGE_KEY) return;
+      if (event.key !== scopedKey(PROJECTS_STORAGE_KEY)) return;
       projectsJsonRef.current = event.newValue ?? "[]";
       setProjects(readProjects());
     };
@@ -1337,7 +1341,7 @@ export default function Home() {
     const serialized = JSON.stringify(designFolders);
     if (designFoldersJsonRef.current === serialized) return;
     try {
-      window.localStorage.setItem(DESIGN_FOLDERS_STORAGE_KEY, serialized);
+      editorStorage().setItem(DESIGN_FOLDERS_STORAGE_KEY, serialized);
       designFoldersJsonRef.current = serialized;
     } catch {
       setDashboardNotice(t("notice.projectListSaveFailed"));
@@ -1366,7 +1370,7 @@ export default function Home() {
     setActiveProjectId(null);
     setView("dashboard");
     if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", "/");
+      window.history.replaceState(null, "", workspacePageUrl("/"));
     }
   }, [activeProjectId, projects]);
 
@@ -1379,10 +1383,10 @@ export default function Home() {
 
     let canceled = false;
     // Taken away once the design has opened; still there after a crash, it keeps a reload from opening it again (#1157).
-    markDesignOpening(window.localStorage, activeProjectId);
+    markDesignOpening(editorStorage(), activeProjectId);
     void loadProjectShapes(activeProjectId)
       .then((record) => {
-        window.setTimeout(() => clearDesignOpening(window.localStorage, activeProjectId), DESIGN_OPENED_AFTER_MS);
+        window.setTimeout(() => clearDesignOpening(editorStorage(), activeProjectId), DESIGN_OPENED_AFTER_MS);
         if (canceled) return;
         const loadedRevision = record?.revision ?? 0;
         const revision = Math.max(activeProject.revision ?? 0, loadedRevision, 1);
@@ -1416,7 +1420,7 @@ export default function Home() {
       })
       .catch((error) => {
         // A design that could not be read did not crash the page.
-        clearDesignOpening(window.localStorage, activeProjectId);
+        clearDesignOpening(editorStorage(), activeProjectId);
         if (!canceled) {
           setDashboardNotice(error instanceof Error ? localizedError(error.message) : t("notice.projectShapesLoadFailed"));
           setProjectShapesById((current) => {
@@ -1520,7 +1524,7 @@ export default function Home() {
         setProjects(storedProjects);
         setActiveProjectId(null);
         setView("dashboard");
-        window.history.replaceState(null, "", "/");
+        window.history.replaceState(null, "", workspacePageUrl("/"));
         return;
       }
       setProjects(storedProjects.map((project) => (project.id === projectId ? { ...project, updatedAt: Date.now() } : project)));
@@ -1533,7 +1537,7 @@ export default function Home() {
     setView("editor");
     if (typeof window !== "undefined") {
       const nextUrl = projectId ? `/?editor=1&project=${encodeURIComponent(projectId)}` : "/?editor=1";
-      window.history.replaceState(null, "", nextUrl);
+      window.history.replaceState(null, "", workspacePageUrl(nextUrl));
     }
   };
 
@@ -1555,7 +1559,7 @@ export default function Home() {
       current.map((project) => (project.id === snapshot.projectId ? { ...project, shapes: snapshot.shapes, updatedAt: version } : project)),
     );
     try {
-      const response = await fetch("/api/project-thumbnail", {
+      const response = await classroomFetch("/api/project-thumbnail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dataUrl: snapshot.image, projectId: snapshot.projectId }),
@@ -1568,7 +1572,7 @@ export default function Home() {
       const payload = await response.json() as { version?: number };
       if (signal?.aborted) throw new DOMException("Thumbnail upload aborted", "AbortError");
       const nextVersion = payload?.version ?? Date.now();
-      const thumbnailUrl = `/api/project-thumbnail?projectId=${encodeURIComponent(snapshot.projectId)}&v=${nextVersion}`;
+      const thumbnailUrl = workspaceUrl(`/api/project-thumbnail?projectId=${encodeURIComponent(snapshot.projectId)}&v=${nextVersion}`);
       setProjects((current) =>
         current.map((project) =>
           project.id === snapshot.projectId
@@ -1597,7 +1601,7 @@ export default function Home() {
     if (!project.thumbnailUrl) return true;
     if (project.thumbnailUrl.startsWith("data:")) return false;
     try {
-      const response = await fetch(project.thumbnailUrl, { cache: "no-store" });
+      const response = await classroomFetch(project.thumbnailUrl, { cache: "no-store" });
       return response.status === 404;
     } catch {
       return false;
@@ -1728,7 +1732,7 @@ export default function Home() {
       try {
         const storageProjects = mergeProjectsForStorage(next);
         const serialized = JSON.stringify(projectListForLocalStorage(storageProjects));
-        window.localStorage.setItem(PROJECTS_STORAGE_KEY, serialized);
+        editorStorage().setItem(PROJECTS_STORAGE_KEY, serialized);
         projectsJsonRef.current = serialized;
         return next;
       } catch {
@@ -1835,7 +1839,7 @@ export default function Home() {
     setOpeningSharedKey(key);
     setDashboardNotice(t("notice.openingShared", { name: sharedProject.name }));
     try {
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(sharedProject.path ?? "", sharedProject.fileName)}`, { cache: "no-store" });
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(sharedProject.path ?? "", sharedProject.fileName)}`, { cache: "no-store" });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({})) as { error?: string };
         throw new Error(payload.error ?? "Could not download shared project");
@@ -1862,7 +1866,7 @@ export default function Home() {
       return next;
     });
     projectIds.forEach((projectId) => {
-      if (!STATIC_EXPORT_BUILD) void fetch(`/api/project-thumbnail?projectId=${encodeURIComponent(projectId)}`, { method: "DELETE" });
+      if (!STATIC_EXPORT_BUILD) void classroomFetch(`/api/project-thumbnail?projectId=${encodeURIComponent(projectId)}`, { method: "DELETE" });
       knownDesignThumbnails.delete(projectId);
       void deleteDesignThumbnail(projectId);
       void deleteProjectShapes(projectId).catch(() => setDashboardNotice(t("notice.projectShapesDeleteFailed")));
@@ -1872,7 +1876,7 @@ export default function Home() {
   const deleteSharedProject = useCallback(async (sharedProject: SharedProject) => {
     setDashboardNotice(t("notice.deletingShared", { name: sharedProject.name }));
     try {
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(sharedProject.path ?? "", sharedProject.fileName)}`, {
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(sharedProject.path ?? "", sharedProject.fileName)}`, {
         method: "DELETE",
         headers: { "If-Match": `"${sharedProject.revision}"` },
       });
@@ -1910,7 +1914,7 @@ export default function Home() {
     try {
       const query = new URLSearchParams({ fileName: sharedProject.fileName, moveTo: targetPath });
       if (from) query.set("path", from);
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, {
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, {
         method: "POST",
         headers: { "If-Match": `"${sharedProject.revision}"` },
       });
@@ -1960,7 +1964,7 @@ export default function Home() {
     try {
       const query = new URLSearchParams({ fileName: sharedProject.fileName, copyTo: name });
       if (sharedProject.path) query.set("path", sharedProject.path);
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, {
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, {
         method: "POST",
         headers: { "If-Match": `"${sharedProject.revision}"` },
       });
@@ -1995,14 +1999,14 @@ export default function Home() {
     if (saveBackToSource && activeProject.sharedProject) headers["If-Match"] = `"${activeProject.sharedProject.revision}"`;
     else headers["If-None-Match"] = "*";
     const body = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-    const thumbnailResponse = await fetch(thumbnailDataUrl);
+    const thumbnailResponse = await classroomFetch(thumbnailDataUrl);
     const thumbnail = await thumbnailResponse.blob();
     if (thumbnail.type !== "image/png" || thumbnail.size === 0) throw new Error("Could not prepare the shared project thumbnail");
     const formData = new FormData();
     formData.append("project", new Blob([body], { type: LYL_MEDIA_TYPE }), fileName);
     formData.append("thumbnail", thumbnail, `${fileName}.png`);
     const upload = (async () => {
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(targetPath, fileName)}`, { method: "POST", headers, body: formData });
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(targetPath, fileName)}`, { method: "POST", headers, body: formData });
       const payload = await response.json().catch(() => ({})) as { error?: string; project?: SharedProject };
       return { response, payload };
     })();
@@ -2038,7 +2042,7 @@ export default function Home() {
     const query = new URLSearchParams({ exportFile: fileName });
     if (targetPath) query.set("path", targetPath);
     if (overwrite) query.set("overwrite", "1");
-    const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST", body: blob });
+    const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST", body: blob });
     const payload = await response.json().catch(() => ({})) as { error?: string; exists?: boolean; file?: { fileName: string; path: string } };
     if (!response.ok || !payload.file) {
       const failure = new Error(payload.error ?? t("notice.saveSharedFailed"));
@@ -2065,7 +2069,7 @@ export default function Home() {
       formData.append("thumbnail", thumbnail, `${fileName}.png`);
       payload = formData;
     }
-    const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(targetPath, fileName)}`, {
+    const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${storeQuery(targetPath, fileName)}`, {
       method: "POST",
       headers: { "If-None-Match": "*" },
       body: payload,
@@ -2116,7 +2120,7 @@ export default function Home() {
     for (const name of names) {
       const query = new URLSearchParams({ folder: name });
       if (path) query.set("path", path);
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST" }).catch(() => null);
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST" }).catch(() => null);
       if (!response || (!response.ok && response.status !== 409)) return path;
       path = path ? `${path}/${name}` : name;
     }
@@ -2233,7 +2237,7 @@ export default function Home() {
     try {
       const query = new URLSearchParams({ folder: name.trim() });
       if (sharedPathRef.current) query.set("path", sharedPathRef.current);
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST" });
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST" });
       const payload = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? t("notice.folderCreateFailed"));
       await refreshSharedProjects();
@@ -2258,7 +2262,7 @@ export default function Home() {
     setDashboardNotice(t("notice.renamingFolder", { name: folderPath.split("/").slice(-1)[0] }));
     try {
       const query = new URLSearchParams({ path: folderPath, renameTo: wanted });
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST" });
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "POST" });
       const payload = await response.json().catch(() => ({})) as { error?: string; path?: string };
       if (!response.ok || typeof payload.path !== "string") throw new Error(payload.error ?? t("notice.folderRenameFailed"));
       const renamedTo = payload.path;
@@ -2292,7 +2296,7 @@ export default function Home() {
     try {
       const query = new URLSearchParams({ path: folderPath, deleteFolder: "1" });
       if (recursive) query.set("recursive", "1");
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "DELETE" });
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, { method: "DELETE" });
       const payload = await response.json().catch(() => ({})) as { error?: string; deleted?: boolean };
       if (!response.ok || !payload.deleted) throw new Error(payload.error ?? t("notice.folderDeleteFailed"));
       // What was inside is gone from the server, and so are the working copies of it here (#265).
@@ -2628,7 +2632,7 @@ export default function Home() {
     setEditorLoading(false);
     setView("dashboard");
     if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", "/");
+      window.history.replaceState(null, "", workspacePageUrl("/"));
     }
   };
 
@@ -2649,7 +2653,7 @@ export default function Home() {
     deleted.forEach((project) => {
       const projectId = project.id;
       if (!STATIC_EXPORT_BUILD) {
-        void fetch(`/api/project-thumbnail?projectId=${encodeURIComponent(projectId)}`, { method: "DELETE" });
+        void classroomFetch(`/api/project-thumbnail?projectId=${encodeURIComponent(projectId)}`, { method: "DELETE" });
       }
       knownDesignThumbnails.delete(projectId);
       void deleteDesignThumbnail(projectId);
@@ -2715,7 +2719,7 @@ export default function Home() {
     try {
       // A save still writing on the way out would bring the old history back over the cut one.
       await (projectShapeSaveQueuesRef.current[projectId] ?? Promise.resolve()).catch(() => undefined);
-      markDesignOpening(window.localStorage, projectId);
+      markDesignOpening(editorStorage(), projectId);
       const stored = await loadProjectShapes(projectId, { currentStateOnly: true });
       if (!stored) throw new Error(t("notice.projectShapesLoadFailed"));
       // A package comes back with one entry already; an older record still carries its whole history.
@@ -2728,9 +2732,9 @@ export default function Home() {
       setProjectShapesById((existing) => ({ ...existing, [projectId]: entry }));
       setDashboardNotice("");
       openEditor(projectId);
-      window.setTimeout(() => clearDesignOpening(window.localStorage, projectId), DESIGN_OPENED_AFTER_MS);
+      window.setTimeout(() => clearDesignOpening(editorStorage(), projectId), DESIGN_OPENED_AFTER_MS);
     } catch (error) {
-      clearDesignOpening(window.localStorage, projectId);
+      clearDesignOpening(editorStorage(), projectId);
       setDashboardNotice(error instanceof Error ? localizedError(error.message) : t("notice.openWithoutHistoryFailed"));
     }
   };
@@ -2843,7 +2847,7 @@ export default function Home() {
     try {
       const query = new URLSearchParams(storeQuery(binding.path ?? "", binding.fileName));
       query.set("renameFileTo", name);
-      const response = await fetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, {
+      const response = await classroomFetch(`${SHARED_PROJECTS_ENDPOINT}?${query.toString()}`, {
         method: "POST",
         headers: { "If-Match": `"${binding.revision}"` },
       });
@@ -4841,3 +4845,5 @@ function StaticIntro() {
     </main>
   );
 }
+
+export default function Page() { return <ClassroomShell><Home /></ClassroomShell>; }

@@ -1,3 +1,4 @@
+import { enabled as classroomEnabled } from "@/lib/classroom/store";
 import { NextResponse } from "next/server";
 import type { LayerlingMcpApiPayload } from "@/lib/layerlingMcpProtocol";
 import {
@@ -21,6 +22,7 @@ export const revalidate = false;
  * Otherwise the bridge is for localhost in development only.
  */
 function localOnly(request: Request, role: McpRole = "client") {
+  if (classroomEnabled()) return NextResponse.json({ error: "MCP is disabled in classroom mode." }, { status: 404 });
   const remote = mcpRemoteSettings();
   if (remote.requested) {
     const access = authorizeRemoteRequest(request, role, remote);
@@ -42,7 +44,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 export async function GET(request: Request) {
   // Whether editors should connect at all; says nothing else, so it needs no token.
   if (new URL(request.url).searchParams.has("status")) {
-    return NextResponse.json({ remote: mcpRemoteEnabled() });
+    return NextResponse.json({ remote: !classroomEnabled() && mcpRemoteEnabled() });
   }
   const blocked = localOnly(request);
   if (blocked) return blocked;

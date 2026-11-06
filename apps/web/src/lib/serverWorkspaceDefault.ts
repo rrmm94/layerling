@@ -1,3 +1,4 @@
+import { classroomFetch } from "@/lib/classroom/client";
 import { SHARED_PROJECTS_ENDPOINT } from "@/lib/sharedProjectsEndpoint";
 import {
   DEFAULT_SNAP_GRID,
@@ -34,7 +35,7 @@ function storedDefault(storage: Storage): StoredDefault | null {
 }
 
 /** Sends this browser's default to the store. False when there is none, or no store took it. */
-export async function pushWorkspaceDefaultToServer(storage: Storage, fetchImpl: typeof fetch = fetch) {
+export async function pushWorkspaceDefaultToServer(storage: Storage, fetchImpl: typeof fetch = classroomFetch) {
   const local = storedDefault(storage);
   if (!local) return false;
   try {
@@ -53,7 +54,7 @@ export async function pushWorkspaceDefaultToServer(storage: Storage, fetchImpl: 
  * Brings this browser and the store together, as described above. Says what happened: "pulled" (the
  * store's default is now this browser's), "pushed", or "none" (no store, nothing to share, or a failure).
  */
-export async function syncWorkspaceDefaultWithServer(storage: Storage, fetchImpl: typeof fetch = fetch): Promise<"pulled" | "pushed" | "none"> {
+export async function syncWorkspaceDefaultWithServer(storage: Storage, fetchImpl: typeof fetch = classroomFetch): Promise<"pulled" | "pushed" | "none"> {
   let payload: { enabled?: boolean; settings?: { workspace?: unknown; snap?: unknown } | null } | null;
   try {
     const response = await fetchImpl(settingsUrl(), { cache: "no-store" });

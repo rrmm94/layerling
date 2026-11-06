@@ -1,3 +1,5 @@
+import { enabled as classroomEnabled, workspaceStudent, workspaceDirectory } from "@/lib/classroom/store";
+import { guardWorkspace } from "@/lib/classroom/guard";
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
@@ -19,22 +21,22 @@ function safeProjectId(projectId: string) {
   return clean || null;
 }
 
-function thumbnailPath(projectId: string) {
+function thumbnailPath(projectId: string, directory: string) {
   const safeId = safeProjectId(projectId);
   if (!safeId) {
     return null;
   }
-  return path.join(THUMBNAIL_DIR, `${safeId}.png`);
+  return path.join(directory, `${safeId}.png`);
 }
 
 /** Deletes the least recently written thumbnails until the folder fits again. */
-async function pruneThumbnails(keep: string) {
-  const entries = await fs.readdir(THUMBNAIL_DIR);
+async function pruneThumbnails(keep: string, directory: string) {
+  const entries = await fs.readdir(directory);
   const files = await Promise.all(
     entries
       .filter((name) => name.endsWith(".png"))
       .map(async (name) => {
-        const filePath = path.join(THUMBNAIL_DIR, name);
+        const filePath = path.join(directory, name);
         const stat = await fs.stat(filePath).catch(() => null);
         return stat?.isFile() ? { filePath, size: stat.size, mtimeMs: stat.mtimeMs } : null;
       }),
@@ -65,13 +67,14 @@ function decodedBase64ByteLength(value: string) {
   return Math.floor((value.length * 3) / 4) - padding;
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
+  const directory = classroomEnabled() ? path.join(workspaceDirectory((await workspaceStudent(request)).id), ".previews") : THUMBNAIL_DIR;
   if (!isSameOriginRequest(request)) {
     return new NextResponse("Project thumbnails require a same-origin request", { status: 403 });
   }
 
   const projectId = new URL(request.url).searchParams.get("projectId") ?? "";
-  const filePath = thumbnailPath(projectId);
+  const filePath = thumbnailPath(projectId, directory);
   if (!filePath) {
     return new NextResponse("Invalid project id", { status: 400 });
   }
@@ -89,7 +92,8 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
+  const directory = classroomEnabled() ? path.join(workspaceDirectory((await workspaceStudent(request)).id), ".previews") : THUMBNAIL_DIR;
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Project thumbnails require a same-origin request" }, { status: 403 });
   }
@@ -111,7 +115,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid thumbnail request" }, { status: 400 });
     }
 
-    const filePath = thumbnailPath(body.projectId);
+    const filePath = thumbnailPath(body.projectId, directory);
     if (!filePath || !body.dataUrl.startsWith(PNG_DATA_URL_PREFIX)) {
       return NextResponse.json({ error: "Invalid thumbnail image" }, { status: 400 });
     }
@@ -125,10 +129,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Thumbnail image is too large" }, { status: 413 });
     }
 
-    await fs.mkdir(THUMBNAIL_DIR, { recursive: true });
+    await fs.mkdir(directory, { recursive: true });
     await fs.rm(filePath, { force: true });
     await fs.writeFile(filePath, Buffer.from(encodedImage, "base64"));
-    await pruneThumbnails(filePath).catch(() => undefined);
+    await pruneThumbnails(filePath, directory).catch(() => undefined);
 
     return NextResponse.json({ version: Date.now() });
   } catch (error) {
@@ -136,13 +140,14 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+async function handleDELETE(request: Request) {
+  const directory = classroomEnabled() ? path.join(workspaceDirectory((await workspaceStudent(request)).id), ".previews") : THUMBNAIL_DIR;
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Project thumbnails require a same-origin request" }, { status: 403 });
   }
 
   const projectId = new URL(request.url).searchParams.get("projectId") ?? "";
-  const filePath = thumbnailPath(projectId);
+  const filePath = thumbnailPath(projectId, directory);
   if (!filePath) {
     return NextResponse.json({ error: "Invalid project id" }, { status: 400 });
   }
@@ -150,3 +155,7 @@ export async function DELETE(request: Request) {
   await fs.rm(filePath, { force: true });
   return NextResponse.json({ deleted: true });
 }
+
+export const GET = guardWorkspace(handleGET);
+export const POST = guardWorkspace(handlePOST);
+export const DELETE = guardWorkspace(handleDELETE);
