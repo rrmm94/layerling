@@ -103,3 +103,7 @@ apps/web/public/guia-pt-pt/
 
 # Local classroom deployment credentials (never commit these).
 docker/.env.classroom
+# Local Dockge configuration backups contain credentials.
+.env.backup.*
+# Python-based deployment helper tests.
+__pycache__/

@@ -18,28 +18,67 @@ Diese Fork-Erweiterung ergänzt den vorhandenen CAD-Editor um eine deutschsprach
 
 Voraussetzungen: Docker Engine mit Compose-Plugin, Git, ausreichend Platz für Entwürfe und Backups. Für den ersten Build sind Node-Abhängigkeiten und CAD-WASM-Dateien größer; etwa 4 GB freier Arbeitsspeicher sind empfehlenswert. Der laufende Einzelserver benötigt keine zusätzliche Datenbank.
 
+Der Stack ist für Dockge unter `/opt/stacks/layerling` vorbereitet. Dockge liest die **`compose.yaml` im Hauptordner** und die dortige **`.env`** automatisch. Der Compose-Projektname bleibt `layerling`, der Host-Port ist `4006`, der interne Container-Port `3000`. Die Befehle benötigen Schreibrechte unter `/opt/stacks` und Zugriff auf Docker (gegebenenfalls mit `sudo` ausführen).
+
 ```bash
 mkdir -p /opt/stacks
 git clone --branch main https://github.com/rrmm94/layerling.git /opt/stacks/layerling
 cd /opt/stacks/layerling
-cp docker/.env.classroom.example docker/.env.classroom
-chmod 600 docker/.env.classroom
-# Datei mit einem Editor öffnen: langes, eigenes Passwort und deine HTTPS-Adresse eintragen.
-nano docker/.env.classroom
+python3 scripts/configure-dockge.py --lan
+# Eigenes Admin-Passwort mit 12 bis 200 Zeichen eintragen:
+nano .env
 
-docker compose --env-file docker/.env.classroom -f docker/compose.classroom.yml up -d --build
-docker compose --env-file docker/.env.classroom -f docker/compose.classroom.yml logs --tail=80
+docker compose up -d --build
+docker compose ps
 ```
 
-`docker/.env.classroom` ist von Git ausgeschlossen. Das Admin-Passwort muss mindestens 12 Zeichen enthalten und wird beim allerersten Login bzw. Kurszugriff als scrypt-Hash im Datenvolume initialisiert. Danach gilt der gespeicherte Hash; eine Änderung der Umgebungsvariable ersetzt ihn nicht. Zum kontrollierten Passwortwechsel den Dienst stoppen, das Volume sichern und das unten beschriebene Reset-Skript verwenden. Keine vordefinierten Konten oder Beispieldaten werden angelegt.
+Danach in Dockge die Stacks neu einlesen/Ansicht aktualisieren und `http://<Ubuntu-Server-IP>:4006` öffnen. Die `.env` kann anschließend auch über Dockge verwaltet werden. `configure-dockge.py` benötigt Python 3 (auf Ubuntu üblicherweise vorhanden), erzeugt private Dateien mit Modus `600` und gibt keine Passwortwerte aus.
 
-Der Compose-Aufbau baut diesen Fork lokal. Ein `ghcr.io/henmedia/layerling`-Image enthält die Erweiterung nicht. Der Source-Link muss auf den tatsächlich bereitgestellten Quellcode deiner angepassten Version verweisen.
+Das Admin-Passwort wird beim ersten Start der Kursverwaltung als scrypt-Hash im Datenvolume initialisiert. Danach gilt der gespeicherte Hash; eine Änderung der Umgebungsvariable ersetzt ihn nicht. Zum kontrollierten Passwortwechsel den Dienst stoppen, das Volume sichern und das unten beschriebene Reset-Skript verwenden. Keine vordefinierten Konten oder Beispieldaten werden angelegt.
+
+### Vorhandene Installation aus `docker/compose.classroom.yml` übernehmen
+
+Die ältere CLI-Anleitung verwendete eine Compose-Datei und `.env.classroom` im Unterordner `docker`. Dockge zeigt diese Datei nicht automatisch als Stack-Konfiguration an. Auch die frühere Bindung an `127.0.0.1` erlaubt keinen direkten Zugriff von einem anderen Rechner oder iPad.
+
+```bash
+cd /opt/stacks/layerling
+git pull --ff-only
+python3 scripts/configure-dockge.py --lan
+# Bei Bedarf das Admin-Passwort lokal prüfen; keine Werte in Chats kopieren:
+nano .env
+docker compose up -d --build
+docker compose ps
+```
+
+Die Umstellung übernimmt bestehende Werte aus `docker/.env.classroom`, soweit sie in der Root-`.env` noch nicht gesetzt sind. Die alte Datei bleibt unverändert. Vor einer Änderung einer bereits vorhandenen Root-`.env` entsteht eine private `.env.backup.<Zeitstempel>`. Die Sicherungen sind von Git und vom Docker-Build ausgeschlossen.
+
+Das Skript ermittelt das bisherige benannte Datenvolume des vorhandenen `layerling`-Containers und trägt es als `LAYERLING_DATA_VOLUME` ein. Bei mehrdeutigen Containern, einem Bind-Mount oder einer widersprüchlichen expliziten Volume-Einstellung bricht es vor einer Änderung ab. So wird ein vorhandener Datenspeicher nicht durch einen leeren ersetzt. `up -d --build` erstellt den Container mit den neuen Ports und Cookie-Einstellungen neu; ein bloßes `restart` übernimmt diese Änderungen nicht.
+
+Die alte Compose-Datei bleibt für bestehende CLI-Abläufe verfügbar. Für Dockge ab jetzt die Root-`compose.yaml` und Root-`.env` verwenden.
+
+### Wenn der Dienst als „unhealthy“ erscheint
+
+Die Startseite allein kann HTTP 200 liefern, obwohl die Kursverwaltung noch nicht bereit ist. Lokal auf dem Ubuntu-Server prüfen:
+
+```bash
+curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:4006/api/classroom
+docker compose ps
+docker compose logs --tail=80
+```
+
+Bei fehlendem oder zu kurzem Admin-Passwort nennt die API die Voraussetzung. Das Passwort in `.env` lokal auf 12 bis 200 Zeichen setzen und `docker compose up -d` ausführen. Das Beispiel `REPLACE_WITH_A_LONG_RANDOM_PASSWORD` ist ausdrücklich kein gültiges Startpasswort. Bei HTTP 500 den konkreten Serverfehler in den Logs prüfen; Volumes und Kursdaten dafür nicht löschen. Der Healthcheck prüft weiter die Kurs-API und meldet künftig deren HTTP-Status und Fehlermeldung.
 
 ### HTTPS
 
-Die Repository- und Stack-Dateien liegen unter `/opt/stacks/layerling`. Die Befehle zur Einrichtung benötigen Schreibrechte unter `/opt/stacks` (gegebenenfalls als root ausführen). Der Compose-Projektname ist fest `layerling`; die Nutzdaten liegen im benannten Docker-Volume `layerling_classroom-data`.
+Die Root-Konfiguration startet mit direktem **LAN-Zugriff auf Port 4006** und HTTP-Cookies. Für eine öffentliche Adresse mit HTTPS hinter einem Reverse Proxy stattdessen in `.env` setzen:
 
-Standardmäßig ist **Host-Port 4006** nur am Ubuntu-Host erreichbar; im Container bleibt die Anwendung auf Port 3000. Ein Reverse Proxy wie Caddy auf demselben Host kann ihn unter deiner Domain veröffentlichen:
+```ini
+LAYERLING_BIND_ADDRESS=127.0.0.1
+LAYERLING_COOKIE_SECURE=true
+LAYERLING_ALLOWED_ORIGINS=https://cad.deine-schule.example
+```
+
+Ein Caddy auf demselben Ubuntu-Host kann dann weiterleiten:
 
 ```caddyfile
 cad.deine-schule.example {
@@ -47,13 +86,11 @@ cad.deine-schule.example {
 }
 ```
 
-DNS, Caddy und dessen HTTPS-Zertifikat auf deinem Server einrichten. In `docker/.env.classroom` `LAYERLING_ALLOWED_ORIGINS=https://cad.deine-schule.example` setzen. Host und Forwarding-Header korrekt weiterreichen. Bei einem Reverse Proxy in einem anderen Container dessen Docker-Netzwerk verwenden; dessen `127.0.0.1` ist nicht der Ubuntu-Host.
-
-Für einen reinen HTTP-Test im vertrauenswürdigen LAN `LAYERLING_BIND_ADDRESS=0.0.0.0` und `LAYERLING_COOKIE_SECURE=false` setzen und erneut `up -d` ausführen. Danach ist die Instanz unter `http://<Ubuntu-Server-IP>:4006` erreichbar. Für Zugriff über das Internet HTTPS und `LAYERLING_COOKIE_SECURE=true` verwenden. Secure-Cookies werden über gewöhnliches LAN-HTTP nicht gesendet.
+Nach einer Änderung `docker compose up -d` ausführen. Host und Forwarding-Header korrekt weiterreichen. Bei einem Reverse Proxy in einem anderen Container dessen Docker-Netzwerk verwenden; dessen `127.0.0.1` ist nicht der Ubuntu-Host. Secure-Cookies werden über gewöhnliches LAN-HTTP nicht gesendet.
 
 ### Daten, Backups und Updates
 
-Das benannte Volume `layerling_classroom-data` enthält:
+Das benannte Volume `layerling_classroom-data` (bei einer übernommenen Installation das in `.env` festgehaltene `LAYERLING_DATA_VOLUME`) enthält:
 
 - `classroom.json`: Kurse, Login-Namen und Passwort-/Code-Hashes;
 - `projects/<zufällige-schüler-id>/`: Entwürfe und Vorschauen, außerhalb des öffentlich ausgelieferten Verzeichnisses;

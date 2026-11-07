@@ -25,3 +25,6 @@ Thumbs.db
 
 # Deployment credentials must never enter the build context.
 docker/.env.classroom
+.env.example
+.env.backup.*
+__pycache__

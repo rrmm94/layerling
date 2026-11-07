@@ -1,0 +1,41 @@
+# Dockge reads this file from /opt/stacks/layerling/compose.yaml.
+# LAN defaults; for an HTTPS proxy set the overrides in .env.
+name: layerling
+
+services:
+  layerling:
+    image: layerling-classroom:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        NEXT_PUBLIC_SOURCE_CODE_URL: ${LAYERLING_SOURCE_CODE_URL:-https://github.com/rrmm94/layerling}
+    restart: unless-stopped
+    ports:
+      - "${LAYERLING_BIND_ADDRESS:-0.0.0.0}:${LAYERLING_PORT:-4006}:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      LAYERLING_CLASSROOM: "true"
+      LAYERLING_CLASSROOM_DATA_DIR: /var/lib/layerling
+      LAYERLING_ADMIN_PASSWORD: ${LAYERLING_ADMIN_PASSWORD:?Set a strong admin password in .env}
+      LAYERLING_COOKIE_SECURE: ${LAYERLING_COOKIE_SECURE:-false}
+      LAYERLING_ALLOWED_ORIGINS: ${LAYERLING_ALLOWED_ORIGINS:-}
+      LAYERLING_DEFAULT_THEME: light
+      LAYERLING_SIMPLE_MODE: "always"
+    volumes:
+      - classroom-data:/var/lib/layerling
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/classroom').then(async r=>{if(!r.ok){const b=await r.json().catch(()=>({}));console.error('Classroom health HTTP '+r.status+(typeof b.error==='string'?': '+b.error:''));process.exit(1)}}).catch(e=>{console.error('Classroom health: '+e.message);process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+volumes:
+  classroom-data:
+    name: ${LAYERLING_DATA_VOLUME:-layerling_classroom-data}
