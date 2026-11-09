@@ -125,7 +125,11 @@ export type ShapeCustomization = {
   height?: number;
   maxDimension?: number;
   cornerFillet?: number;
+  /** Rounded box with flat top and bottom: an own radius for each corner (back left, back right, front right, front left); wins over cornerFillet. */
+  cornerFillets?: [number, number, number, number];
   topBottomFillet?: number;
+  /** Rounded box only: the bottom edge on its own; left out, the bottom takes the top's radius. */
+  bottomFillet?: number;
   roundedBoxQuality?: number;
   steps?: number;
   sides?: number;
@@ -454,6 +458,10 @@ export type ShapeCustomization = {
    * countersink take it while they are holes. The height still counts to the shoulder, the tip lies below it.
    */
   drillPointAngle?: number;
+  /** Counterbore, countersink and double countersink: a slotted hole (Discussion #1531), as on the shape. */
+  screwHoleSlot?: boolean;
+  /** Countersink and double countersink: how far in mm the head sits below the face (Discussion #1531), as on the shape. */
+  screwHoleRecess?: number;
   /** Port opening: rounded corners, or the lower ones cut off as on an HDMI or DisplayPort socket. */
   portProfile?: PortProfile;
   /** Port opening: extra room in mm on every side on top of the preset's, already in width and height; it lets the preset be recognised. */
@@ -562,6 +570,8 @@ export type WorkplaneWorkspaceSettings = {
   objectSnap: boolean;
   /** An STL leaves as a plain download each time, which the browser numbers (name (1).stl), instead of writing into one linked file (#731). */
   stlAsDownload: boolean;
+  /** Export > LYL, Ctrl+S and Save as leave as a plain download, without the browser's save dialog (Discussion #1449). */
+  lylAsDownload: boolean;
   /** The browser asks "Leave site?" when a design is open and the tab is closed or reloaded; off by default (#683 mail). */
   confirmTabClose: boolean;
   dimensionsAlwaysVisible: boolean;
@@ -783,11 +793,19 @@ export type FlatSpringEnds = "eye" | "tab" | "none";
  */
 export type ThreadProfile = "v" | "trapezoidal" | "round" | "whitworth" | "custom";
 
+/** A finer cut of an exact revolved body than the usual: see SketchRevolveSettings.smoothness. */
+export type SketchRevolveSmoothness = "fine" | "extraFine";
+
 export type SketchRevolveSettings = {
   startAngle: number;
   sweepAngle: number;
   sides: number;
   quality: number;
+  /**
+   * How finely an exact revolved body is cut into facets (Discussion #1426): left out the usual fineness of a sketch body,
+   * finer for a large round pot whose facets showed on the print. More triangles, so only where they are wanted.
+   */
+  smoothness?: SketchRevolveSmoothness;
   /**
    * How far the profile climbs per full turn, in mm. Left out or 0 the profile turns into rings; above
    * 0 it winds up as one continuous strand (a coil, a filament spool) and the sweep may run past a
@@ -918,6 +936,9 @@ export type ParametricSource = {
   slopeEnd?: number;
   slopeSide?: "back" | "front" | "left" | "right";
   slopeCurve?: number;
+  slopeFrom?: "end" | "middle" | "arch";
+  sideDrop?: number;
+  sideCurve?: number;
   narrowEnd?: number;
   narrowSide?: "back" | "front" | "left" | "right";
   narrowCurve?: number;
@@ -1049,6 +1070,12 @@ export type WorkplaneShape = {
   slopeSide?: "back" | "front" | "left" | "right";
   /** Slope along: -1 to 1, 0 a straight top, above 0 bulging up, below 0 sagging. */
   slopeCurve?: number;
+  /** Slope along: where the top line starts: at one end ("end", the default) or in the middle ("middle": both ends low, symmetric). */
+  slopeFrom?: "end" | "middle" | "arch";
+  /** Side drop: how many mm the two longer sides are lowered at their edges, evenly; missing or 0 means none. */
+  sideDrop?: number;
+  /** Side drop: -1 to 1, 0 a straight line from the middle to the edge, above 0 bulging up, below 0 sagging. */
+  sideCurve?: number;
   /**
    * Narrow along: seen from above, the width of the narrow end in mm,
    * both long sides running in evenly. Missing or the full width means no narrowing.
@@ -1367,12 +1394,27 @@ export type WorkplaneShape = {
    * countersink take it while they are holes. The height still counts to the shoulder, the tip lies below it.
    */
   drillPointAngle?: number;
+  /**
+   * Counterbore, countersink and double countersink: a slotted hole (Discussion #1531). The head and the shaft run
+   * along a slot instead of standing round, so the part can still be moved a little before the screw is tightened.
+   * The shorter of width and depth is the head's diameter, the difference the slot's length, along the longer one.
+   * Missing or false: the round hole, stretched into an oval when width and depth differ, as always.
+   */
+  screwHoleSlot?: boolean;
+  /**
+   * Countersink and double countersink: how far in mm the screw head sits below the face (Discussion #1531) - a
+   * straight pocket as wide as the head above the cone, on the double countersink at both ends. Missing or 0: flush.
+   */
+  screwHoleRecess?: number;
   /** Port opening: rounded corners, or the lower ones cut off as on an HDMI or DisplayPort socket. */
   portProfile?: PortProfile;
   /** Port opening: extra room in mm on every side on top of the preset's, already in width and height; it lets the preset be recognised. */
   portClearance?: number;
   cornerFillet?: number;
+  /** Rounded box with flat top and bottom: an own radius for each corner (back left, back right, front right, front left); wins over cornerFillet. */
+  cornerFillets?: [number, number, number, number];
   topBottomFillet?: number;
+  bottomFillet?: number;
   roundedBoxQuality?: number;
   bentTubeProfile?: BentTubeProfile;
   bentTubeInnerProfile?: BentTubeInnerProfile;
@@ -1486,6 +1528,11 @@ export type WorkplaneShape = {
   surfaceTextureMask?: import("@/lib/surfaceTexture").SurfaceTextureMaskMode;
   /** The gold filling the cracks of this textured body (see surfaceTextureShape.ts): it goes when the texture is made anew or taken off. */
   surfaceFillOf?: string;
+  /**
+   * Paint on the body's surface, for printing in several colours (paint.ts): strokes laid in order,
+   * each a region found again on the mesh whenever it is built, in a colour of its own or erasing.
+   */
+  paint?: import("@/lib/paint").PaintStroke[];
   /** Only for "vase": the vase tool's settings; the frame gives its height and widest diameter. */
   vase?: import("@/lib/vase/vase-geometry.mjs").VaseSettings;
   /** An accessory laid out for a vase (its id): laying them out again replaces it. */
@@ -1558,6 +1605,18 @@ export type WorkplaneShape = {
    */
   groupOperation?: "group" | "intersection" | "hull" | "bundle" | "loft";
   /**
+   * A support rib (Discussion #1385) keeps the id of the part it holds, as it was before any grouping
+   * (localIdBase): its bridges are meant to reach into that part and to be thin, so the clearance and print
+   * checks leave them out. See lib/supportRib.
+   */
+  supportRibFor?: string;
+  /**
+   * A bridge the stencil bridge tool made (Discussion #1438): a box that holds a part inside a hole, such as the middle
+   * of an "o", to the plate round it. Running the tool on its group again puts new bridges in place of these. See
+   * lib/stencilBridgeTool.
+   */
+  stencilBridge?: boolean;
+  /**
    * The point this body turns about, kept with the body: a fraction of its
    * width, height and depth from its centre, in its own frame, so it moves,
    * turns and scales with it. See lib/rotationPivot.
@@ -1582,6 +1641,11 @@ export type WorkplaneShape = {
    * See lib/groupKeepParts.
    */
   groupResize?: GroupResizeMode;
+  /**
+   * A hull only (Discussion #1440): the holes and hollows of each part stay open - a hollowed cylinder, a tube, a part
+   * grouped with its holes - where the hull would wrap and fill them. Left out, the hull fills them, as it always has.
+   */
+  hullKeepHoles?: boolean;
   locked?: boolean;
   /**
    * Lock shape (#1277): the part still moves, turns and groups with others, but its size, settings,
@@ -1636,7 +1700,7 @@ export type QrErrorCorrection = "L" | "M" | "Q" | "H";
 export type QrStyle = "code" | "raised" | "engraved";
 /** What a QR body keeps so it can be made again from the inspector (#553). */
 /** The single-board computers the SBC board shape knows (#1098). */
-export type SbcBoardType = "pi5" | "pi4" | "pi3bPlus" | "zero2w" | "bttPi12" | "xiaoEsp32c6" | "esp32c3SuperMini" | "esp32c6SuperMini" | "featherEsp32s3" | "arduinoUno" | "arduinoNano" | "wemosD1Mini";
+export type SbcBoardType = "pi5" | "pi4" | "pi3bPlus" | "zero2w" | "bttPi12" | "xiaoEsp32c6" | "esp32c3SuperMini" | "esp32c6SuperMini" | "featherEsp32s3" | "arduinoUno" | "arduinoMega" | "arduinoNano" | "wemosD1Mini" | "pico" | "picoW" | "pico2" | "pico2W" | "esp32CamMb" | "esp32s3Cam" | "esp32DevKitC" | "esp32DevKitV1";
 
 export type SbcBoardSettings = {
   board: SbcBoardType;
@@ -1650,6 +1714,8 @@ export type SbcBoardSettings = {
   ribbonSide?: boolean;
   /** The GPIO header reaches up through a lid, by `upReach`. */
   gpioUp?: boolean;
+  /** A camera's lens reaches up through a lid, by `upReach`. */
+  lensUp?: boolean;
   /** How far in mm the openings going up reach above their part, 20 to 100 (default 20). */
   upReach?: number;
   /** How far in mm the buttons reach the way they are pressed (up through a lid, or out of a side), 0 to 100; missing is 0. */

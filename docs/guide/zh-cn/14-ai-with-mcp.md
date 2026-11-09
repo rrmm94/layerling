@@ -82,10 +82,12 @@ AI 使用与你相同的功能，走的是与你在编辑器中的操作相同�
 | 工具 | 作用 |
 | --- | --- |
 | `layerling_list_editors` | 列出已打开的编辑器标签页 |
+| `layerling_rename_project` | 给项目命名，和项目名称旁边的铅笔一样 |
 | `layerling_open_editor` | 在你的默认浏览器中打开新的编辑器标签页，并等待它连接（仅限你自己的电脑） |
 | `layerling_read_scene` | 读取场景、选择、单位以及所有对象的精确尺寸 |
 | `layerling_list_objects` | 列出所有对象及其尺寸、位置、旋转和 id |
 | `layerling_select_objects` | 选择对象 |
+| `layerling_hide_others` | 隐藏除选择或指定对象之外的所有内容，只占一步撤销 |
 | `layerling_delete_objects` | 删除对象 |
 | `layerling_move_object` | 把对象移到对象列表中的另一个位置 |
 | `layerling_create_shape` | 创建形状：长方体、圆柱体、文字（也支持弯曲）、螺纹、齿轮、草图实体以及其他所有形状 |
@@ -101,6 +103,9 @@ AI 使用与你相同的功能，走的是与你在编辑器中的操作相同�
 | `layerling_perforate_face` | 在平面上或绕圆柱、圆管、孔的侧壁切出孔阵列；孔仍作为孔与实体分组在一起 |
 | `layerling_sweep_sketch` | 沿一条由点构成的路径拉出矩形或圆形截面，成为一个精确实体；闭合路径会形成圆环 |
 | `layerling_push_face` | 把平面推出，或在其中挖出凹槽，可设置距边缘的内缩和圆角半径；新部分是一个与实体分组的草图实体 |
+| `layerling_paint` | 为多色打印给实体的部分表面上自己的颜色（上色）：把面填充到锐利边缘、圆斑，或在平面视图中画的套索；橡皮擦、全部清除；随实体保存，并在 3MF 中写成已上色的面 |
+| `layerling_support_rib` | 在以一条棱边倾斜打印的零件下表面下方立一条薄支撑肋，带一层高的连接桥（支撑肋） |
+| `layerling_stencil_bridges` | 用与板组合在一起、宽度和高度可设的连接桥固定文字穿透的板中会掉出的部分（模板连接桥） |
 | `layerling_mate_faces` | 把一个对象的面贴到另一个对象的面，可面对面或齐平 |
 | `layerling_open_group` | 打开分组，以便逐个修改其部件，打开的分组内也可再打开分组 |
 | `layerling_close_group` | 再次关闭分组（“完成”）或取消 |

@@ -100,7 +100,7 @@ Chceš-li se na pracovní rovinu podívat kolmo, stiskni [[P]] nebo klikni na {{
 Když se návrh nevejde na jednu podložku, třeba krabička s víkem a vložkami, může mít více tiskových podložek. Klikněte na {{ui:editor.tool.buildPlates}} ve skupině {{ui:editor.group.arrange}} nebo zvolte {{ui:plates.moveTo}} v nabídce pravého kliknutí na těleso. Dole v pohledu se objeví lišta s tlačítkem pro každou podložku; číslo na něm udává, kolik těles na podložce stojí.
 
 - Každá podložka je velká jako pracovní plocha a podložky leží vedle sebe vpravo od první, 20 mm od sebe. Těleso patří k podložce, na které stojí střed jeho půdorysu, takže přetažením na druhou stranu se dostane na jinou podložku. Návrh má nejvýše 12 podložek.
-- Kliknutí na podložku v liště ji ukáže a nové tvary pak přistanou na ní. {{ui:plates.showAll}} ukáže všechny. Dvojklik na podložku nebo {{ui:plates.rename}} jí dá název, třeba „Víko“, který je na podložce napsán.
+- Kliknutí na podložku v liště ji ukáže a nové tvary i importované soubory pak přistanou na ní. {{ui:plates.showAll}} ukáže všechny. Dvojklik na podložku nebo {{ui:plates.rename}} jí dá název, třeba „Víko“, který je na podložce napsán.
 - {{ui:plates.moveLeft}} a {{ui:plates.moveRight}} mění pořadí, tělesa se posouvají se svou podložkou. {{ui:plates.remove}} odebere aktivní podložku; její tělesa přejdou na první podložku na stejné místo.
 - {{ui:plates.arrange}} rozloží vybraná tělesa, nebo všechna, řadu po řadě na podložky, největší první, 5 mm od sebe, a přidává podložky, dokud jsou potřeba. Těleso větší než podložka zůstane na místě.
 - Se zvolenou tiskárnou se každé těleso kontroluje proti své podložce a výška tisku se počítá od nejnižšího tělesa na ní. Podložka s tělesem, které se nevejde, ukáže své číslo červeně.
@@ -111,6 +111,7 @@ Okno exportu pak nabízí {{ui:export.plates}}: všechny podložky v jednom soub
 ## Mřížka a přichytávání
 
 Mřížka usnadňuje odhad rozměrů podložky. Vpravo dole se nastavuje **krok přichytávání**: posun a změna velikosti se provádějí v násobcích tohoto rozměru, například 1 mm. Pro jemnou práci krok zmenšete, pro hrubé rozmístění zvětšete. {{ui:editor.tool.snapToGrid}} dodatečně přesune vybrané tvary na nejbližší průsečík mřížky. Při přesouvání se přichytávají také k jiným tvarům, viz [Výběr a uspořádání](chapter:select-and-arrange). Bez myši: [[Alt]]+[[1]] až [[Alt]]+[[0]] vyberou položku s tímto číslem v nabídce ([[Alt]]+[[1]] přichytávání vypne) a [[,]] a [[.]] krok o stupeň zjemní nebo zhrubí. Funguje to i v náčrtu.
+Krátké kliknutí prostředním tlačítkem myši, bez pohybu myší, otevře nabídku kroku přichytávání přímo u ukazatele, i ve skice; tažení se stisknutým prostředním tlačítkem dál posouvá pohled.
 
 > **Tip:** Při přesném lícování dílů přestaňte pohledem otáčet. Číselnou klávesou zvolte pohled shora nebo zepředu a [[O]] přepněte na rovnoběžné promítání. Snadněji pak poznáte, zda jsou hrany skutečně v jedné rovině.
 
@@ -118,15 +119,23 @@ Mřížka usnadňuje odhad rozměrů podložky. Vpravo dole se nastavuje **krok 
 
 Ozubené kolo v titulním řádku ({{ui:editor.workspaceSettings}}) otevře nastavení. Vlevo je pět oblastí: {{ui:workspace.appearance}}, {{ui:workspace.measurement}}, {{ui:workspace.workplane}}, {{ui:workspace.shapeDefaults}} a {{ui:workspace.history}}. Změna platí okamžitě. {{ui:workspace.makeDefault}} dole uloží současné nastavení jako výchozí, takže nový projekt začne s ním. Otevřený soubor si přinese vlastní nastavení; {{ui:workspace.useMyDefault}} vedle něj použije na otevřený projekt vaše uložené barvy, mřížku a ostatní, přičemž zachová jeho jednotky. Pokud vaše výchozí nastavení obsahuje tiskárnu, přijde i s velikostí své podložky; bez tiskárny si projekt ponechá svou podložku a tiskárnu. {{ui:workspace.close}} vpravo nahoře okno zavře. Tato část prochází nastavení jedno po druhém.
 
+{{ui:workspace.exportSettings}} uloží nastavení okna do souboru (layerling-settings-<datum>.json): barvy, mřížku, stíny, kameru a výchozí hodnoty tvarů spolu s motivem, velikostí panelu nástrojů, rohem kostky pohledu, barvami tvarů a vůlí každé tiskárny. Na jiném počítači nebo po ztrátě dat prohlížeče {{ui:workspace.importSettings}} soubor znovu načte: stane se vaším výchozím nastavením pro nové návrhy a použije se na otevřený návrh jako {{ui:workspace.useMyDefault}}. Vaše vlastní klávesy z klávesových zkratek jdou do souboru také.
+
 ### Vzhled: motiv, pás nástrojů a krychle
 
 {{ui:workspace.theme}} určuje barevné schéma celého programu: {{ui:workspace.themeSystem}} se řídí počítačem, další jsou {{ui:workspace.themeLight}}, {{ui:workspace.themeDark}} a {{ui:workspace.themeGraphite}}. Změnit ho lze i vpravo nahoře v editoru.
 
-{{ui:workspace.toolbarSize}} v {{ui:workspace.appearance}} mění velikost pásu nástrojů, nabídky tvarů, lišty pohledu vlevo a panelu vlastností vpravo: {{ui:workspace.toolbarSizeSmall}}, {{ui:workspace.toolbarSizeMedium}} nebo {{ui:workspace.toolbarSizeLarge}}. Malé ovládání nechá více místa na notebooku, velké usnadňuje dotyk i použití na velké obrazovce. Nevejdou-li se velká tlačítka, skupiny pásu se zalomí do dalšího řádku. Nastavení se uchovává v tomto prohlížeči pro všechny projekty.
+{{ui:workspace.toolbarSize}} v {{ui:workspace.appearance}} mění velikost pásu nástrojů, nabídky tvarů, lišty pohledu vlevo a panelu vlastností vpravo: {{ui:workspace.toolbarSizeSmall}}, {{ui:workspace.toolbarSizeMedium}} nebo {{ui:workspace.toolbarSizeLarge}}. Malé ovládání nechá více místa na notebooku, velké usnadňuje dotyk i použití na velké obrazovce. Nevejdou-li se velká tlačítka, skupiny pásu se zalomí do dalšího řádku. Nastavení je na kartě {{ui:workspace.ribbon}} v nastavení, uchovává se v tomto prohlížeči a platí pro všechny projekty.
 
 {{ui:workspace.shapeColors}} zobrazí na obrázcích knihovny tvarů barvu, se kterou nový tvar začíná (barvu jeho druhu, nebo tu, kterou jste uložili přes {{ui:inspector.saveDefaults}}). Pokud dáváte přednost šedým obrázkům, vypněte to; prohlížeč si volbu zapamatuje.
 
 {{ui:workspace.viewCubePosition}} v {{ui:workspace.appearance}} přesune orientační krychli do jiného rohu pracovní plochy: {{ui:workspace.viewCubePositionTopLeft}} (jako dosud), {{ui:workspace.viewCubePositionTopRight}}, {{ui:workspace.viewCubePositionBottomLeft}} nebo {{ui:workspace.viewCubePositionBottomRight}}. V každém rohu kromě levého horního se lišta pohledu posune nahoru na místo, které krychle uvolnila. Vpravo dole stojí krychle těsně nad ovládáním {{ui:inspector.snapGrid}}. Dokud jsou vpravo otevřené vlastnosti tvaru, krychle na pravé straně uhne vlevo od nich. Roh se uchovává v tomto prohlížeči pro všechny projekty. V úzkém okně, třeba na telefonu, je nastavení skryté a krychle zůstává vlevo nahoře.
+
+### Vzhled: tlačítka na pásu nástrojů
+
+{{ui:workspace.ribbonButtons}} odebere z pásu nástrojů skupiny a tlačítka, které nikdy nepoužíváte. Kliknutím na skupinu otevřete její seznam: {{ui:workspace.ribbonGroupShown}} odebere celou skupinu, zaškrtnutí u tlačítka jen to tlačítko. {{ui:workspace.ribbonShowAll}} vrátí vše zpět. Skupina bez tlačítek zmizí a ostatní se posunou, takže se do jednoho řádku vejde víc pásu.
+
+Co odeberete, chybí jen na pásu: vyhledávání příkazů ([[Ctrl]]+[[K]]) to dál najde a jeho klávesa to dál spustí. Šipky u skupiny ji posouvají v seznamu nahoru nebo dolů, a tím i po pásu; {{ui:workspace.ribbonResetOrder}} vrátí pořadí z výroby. Šipky u tlačítka ho posouvají stejně uvnitř jeho skupiny; ve skupině {{ui:editor.group.modify}} zůstane ve svém pojmenovaném oddílu. Skupina Tvary a Nápověda zůstanou vždy a Tvary si drží místo za prvními dvěma skupinami. Volbu si pamatuje tento prohlížeč a jde i do souboru z {{ui:workspace.exportSettings}}. Platí pro 3D editor; náčrt má vlastní lištu.
 
 ### Vzhled: rychlý režim
 

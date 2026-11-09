@@ -82,10 +82,12 @@ L’IA usa le stesse funzioni che hai a disposizione, attraverso lo stesso perco
 | Strumento | Funzione |
 | --- | --- |
 | `layerling_list_editors` | Elenca le schede degli editor aperte. |
+| `layerling_rename_project` | Dà un nome al progetto, come la matita accanto al nome del progetto. |
 | `layerling_open_editor` | Apre una nuova scheda dell’editor nel browser predefinito e attende che si colleghi (solo sul tuo computer). |
 | `layerling_read_scene` | Legge la scena, la selezione, le unità e le dimensioni esatte di tutti gli oggetti. |
 | `layerling_list_objects` | Elenca tutti gli oggetti con dimensioni, posizione, rotazione e ID. |
 | `layerling_select_objects` | Seleziona gli oggetti. |
+| `layerling_hide_others` | Nasconde tutto tranne la selezione o gli oggetti indicati, in un solo passo di annullamento. |
 | `layerling_delete_objects` | Elimina gli oggetti. |
 | `layerling_move_object` | sposta un oggetto in un altro punto dell'elenco degli oggetti |
 | `layerling_create_shape` | Crea una forma: cubo, cilindro, testo (anche curvo), filettatura, ingranaggio, corpo da schizzo e tutte le altre forme. |
@@ -101,6 +103,9 @@ L’IA usa le stesse funzioni che hai a disposizione, attraverso lo stesso perco
 | `layerling_perforate_face` | Crea un motivo di fori su una faccia piana o intorno alla parete di un cilindro, un tubo o un foro; i fori restano tali e vengono raggruppati con il corpo. |
 | `layerling_sweep_sketch` | Estende una sezione rettangolare o circolare lungo un percorso di punti, creando un corpo esatto; se il percorso è chiuso, crea un anello. |
 | `layerling_push_face` | Estende una faccia piana o crea una tasca al suo interno, impostando un margine dal bordo e il raggio degli angoli; la nuova parte è un corpo da schizzo raggruppato con il corpo originale. |
+| `layerling_paint` | dipinge parti di un corpo in colori propri per stampare in più colori (Dipingi): riempire una faccia fino agli spigoli vivi, una macchia rotonda o un lazo tracciato in una vista piana; cancellare, togliere tutto; salvato con il corpo e scritto in un 3MF come facce dipinte |
+| `layerling_support_rib` | mette una nervatura di supporto sottile sotto la faccia inferiore di un pezzo stampato inclinato su uno spigolo, con ponti alti un layer (Nervatura di supporto) |
+| `layerling_stencil_bridges` | trattiene le parti di una piastra attraversata da un testo che cadrebbero, con ponticelli raggruppati con la piastra, larghi e alti come indicato (Ponticelli per stencil) |
 | `layerling_mate_faces` | Accosta una faccia di un oggetto a quella di un altro, facendole combaciare o allineandole a filo. |
 | `layerling_open_group` | Apre un gruppo per modificare le parti singolarmente, anche se si trova dentro un altro gruppo già aperto. |
 | `layerling_close_group` | Chiude il gruppo (con «Fine») oppure annulla l’operazione. |
