@@ -100,7 +100,7 @@ To look straight at the workplane, press [[P]] or click {{ui:camera.lookOntoWork
 When a design holds more than one plate can print, a box with its lid and inserts for example, it can have several build plates. Click {{ui:editor.tool.buildPlates}} in the {{ui:editor.group.arrange}} group, or choose {{ui:plates.moveTo}} in the menu of a right click on a body. A bar appears at the foot of the view with one button per plate; the number on it says how many bodies stand on the plate.
 
 - Every plate is as large as the workplane, and the plates lie side by side to the right of the first one, 20 mm apart. A body belongs to the plate the middle of its footprint stands on, so dragging it across puts it on the other plate. A design holds up to 12 plates.
-- A click on a plate in the bar looks at it, and new shapes then land on it. {{ui:plates.showAll}} looks at all of them. A double click on a plate, or {{ui:plates.rename}}, gives it a name such as "Lid", which is written on the plate.
+- A click on a plate in the bar looks at it, and new shapes and imported files then land on it. {{ui:plates.showAll}} looks at all of them. A double click on a plate, or {{ui:plates.rename}}, gives it a name such as "Lid", which is written on the plate.
 - {{ui:plates.moveLeft}} and {{ui:plates.moveRight}} change the order, the bodies moving with their plate. {{ui:plates.remove}} takes the active plate away; its bodies go onto the first plate at the same spot.
 - {{ui:plates.arrange}} lays the selected bodies, or all of them, out row by row on the plates, the largest first, 5 mm apart, and adds plates while they are needed. A body larger than a plate stays where it is.
 - With a printer chosen, every body is checked against its own plate, and the build height counts from the lowest body on that plate. A plate with a body that does not fit shows its number in red.
@@ -111,6 +111,7 @@ The export window then offers {{ui:export.plates}}: all plates in one file, side
 ## Grid and snapping
 
 The grid shows the size of the plate. At the bottom right is the **snap step**: moving and scaling snap in steps of that size, for example 1 mm. Make it smaller for fine work and larger for rough arranging. {{ui:editor.tool.snapToGrid}} in the ribbon moves the selected shapes afterwards onto the nearest grid crossing. While moving, shapes also snap to other shapes, see [Selecting and arranging](chapter:select-and-arrange). Without the mouse: [[Alt]]+[[1]] to [[Alt]]+[[0]] pick that entry of the menu ([[Alt]]+[[1]] turns snapping off), and [[,]] and [[.]] make the step one size finer or coarser. This works in a sketch too.
+A short click with the middle mouse button, without moving the mouse, opens the snap step menu right at the pointer, in a sketch too; holding the middle button and dragging still moves the view.
 
 > **Tip:** Stop rotating the view when you fit parts together exactly. Use the number keys to go to the straight view from top or front and press [[O]] for the flat display. Then you see at once whether two edges are really flush.
 
@@ -118,15 +119,23 @@ The grid shows the size of the plate. At the bottom right is the **snap step**: 
 
 The cogwheel in the title row ({{ui:editor.workspaceSettings}}) opens the settings. On the left are five areas: {{ui:workspace.appearance}}, {{ui:workspace.measurement}}, {{ui:workspace.workplane}}, {{ui:workspace.shapeDefaults}} and {{ui:workspace.history}}. A change counts at once. {{ui:workspace.makeDefault}} at the bottom saves the current settings as the default, so that a new design starts with them. A file you open brings its own settings; {{ui:workspace.useMyDefault}} next to it puts your saved colours, grid and the rest on the open design, keeping its units. If your default has a printer, that printer comes along with its plate size; without one the design keeps its plate and printer. {{ui:workspace.close}} at the top right closes the window. This part goes through the settings one by one.
 
+{{ui:workspace.exportSettings}} next to it saves the settings of the window in a file (layerling-settings-<date>.json): the colours, grid, shadows, camera and shape defaults, together with the theme, toolbar size, view cube corner, shape colours and the play of each printer. On another computer, or after the browser lost its data, {{ui:workspace.importSettings}} reads the file again: it becomes your default for new designs and goes onto the open design like {{ui:workspace.useMyDefault}}. Your own keys from the keyboard shortcuts go along too.
+
 ### Appearance: theme, toolbar and view cube
 
 {{ui:workspace.theme}} sets the colour scheme of the whole program: {{ui:workspace.themeSystem}} follows your computer, the others are {{ui:workspace.themeLight}}, {{ui:workspace.themeDark}} and {{ui:workspace.themeGraphite}}. You can also change it at the top right of the editor.
 
-{{ui:workspace.toolbarSize}} makes the buttons of the ribbon on top, its shape menu, the view bar on the left and the properties panel on the right smaller or larger: {{ui:workspace.toolbarSizeSmall}}, {{ui:workspace.toolbarSizeMedium}} (as it always was) or {{ui:workspace.toolbarSizeLarge}}. Small leaves more room for the workplane on a laptop; large is easier to hit on a big screen or with a finger. With large buttons the groups of the ribbon go onto a second row when the window is too narrow for them. The size is kept in this browser and holds for every design.
+{{ui:workspace.toolbarSize}} makes the buttons of the ribbon on top, its shape menu, the view bar on the left and the properties panel on the right smaller or larger: {{ui:workspace.toolbarSizeSmall}}, {{ui:workspace.toolbarSizeMedium}} (as it always was) or {{ui:workspace.toolbarSizeLarge}}. Small leaves more room for the workplane on a laptop; large is easier to hit on a big screen or with a finger. With large buttons the groups of the ribbon go onto a second row when the window is too narrow for them. The size sits in the {{ui:workspace.ribbon}} tab of the settings, is kept in this browser and holds for every design.
 
 {{ui:workspace.shapeColors}} puts the colour a new shape starts with on the pictures of the shape library (the colour of its kind, or the one you saved with {{ui:inspector.saveDefaults}}). Switch it off if you prefer grey pictures; your browser remembers the choice.
 
 {{ui:workspace.viewCubePosition}} puts the view cube in another corner of the workplane: {{ui:workspace.viewCubePositionTopLeft}} (as it always was), {{ui:workspace.viewCubePositionTopRight}}, {{ui:workspace.viewCubePositionBottomLeft}} or {{ui:workspace.viewCubePositionBottomRight}}. In any corner but the top left, the view bar moves up into the spot the cube left. In the bottom right the cube stands just above the {{ui:inspector.snapGrid}} control. While the properties of a shape are open on the right, a cube on the right steps to the left of them. The corner is kept in this browser and holds for every design. On a narrow window, such as a phone, the setting is hidden and the cube stays in the top left.
+
+### Appearance: buttons in the ribbon
+
+{{ui:workspace.ribbonButtons}} takes the groups and buttons you never use out of the ribbon. Click a group to open its list: {{ui:workspace.ribbonGroupShown}} takes the whole group out, the tick next to a button just that button. {{ui:workspace.ribbonShowAll}} brings everything back. A group with no button left disappears and the others move up, so more of the ribbon fits in one row.
+
+What you take out only leaves the ribbon: the command search ([[Ctrl]]+[[K]]) still finds it, and its key still runs it. The arrows next to a group move it up or down the list, and so along the ribbon; {{ui:workspace.ribbonResetOrder}} brings back the order it came with. The arrows beside a button move it the same way inside its group; in {{ui:editor.group.modify}} it stays within its named section. The Shapes group and Help always stay, and Shapes keeps its place after the first two groups. The choice is kept in this browser and goes into the file of {{ui:workspace.exportSettings}}. It applies to the 3D editor; the sketch has a bar of its own.
 
 ### Appearance: fast mode
 

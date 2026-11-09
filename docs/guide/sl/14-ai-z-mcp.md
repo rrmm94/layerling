@@ -79,9 +79,11 @@ Umetna inteligenca dela z istimi funkcijami kot ti, teče po isti poti kot tvoje
 | --- | --- |
 | `layerling_open_editor` | odpre nov zavihek urejevalnika v privzetem brskalniku in počaka, da se poveže (samo na tvojem računalniku) |
 | `layerling_list_editors` | našteje odprte zavihke urejevalnika |
+| `layerling_rename_project` | projektu da ime, kot svinčnik ob imenu projekta |
 | `layerling_read_scene` | prebere prizor, izbor, enote in natančne mere vseh objektov |
 | `layerling_list_objects` | našteje vse objekte z merami, lego, zasukom in oznako |
 | `layerling_select_objects` | izbere objekte |
+| `layerling_hide_others` | skrije vse razen izbora ali navedenih objektov, v enem koraku razveljavitve |
 | `layerling_delete_objects` | izbriše objekte |
 | `layerling_move_object` | premakne objekt na drugo mesto na seznamu objektov |
 | `layerling_create_shape` | ustvari obliko: kvader, valj, besedilo (tudi ukrivljeno), navoj, zobnik, skicirano telo in vse druge |
@@ -97,6 +99,9 @@ Umetna inteligenca dela z istimi funkcijami kot ti, teče po isti poti kot tvoje
 | `layerling_perforate_face` | vreže vzorec lukenj v ravno ploskev ali okrog stene valja, cevi ali izvrtine, luknje ostanejo kot luknje, združene v skupino s telesom |
 | `layerling_sweep_sketch` | povleče pravokoten ali okrogel prerez vzdolž poti iz točk kot eno natančno telo; sklenjena pot da obroč |
 | `layerling_push_face` | ravno ploskev potegne navzven ali vanjo izreže žep, z odmikom od roba in polmerom vogalov; nov del je telo iz skice, združeno v skupino s telesom |
+| `layerling_paint` | pobarva dele telesa v lastnih barvah za tisk v več barvah (Barvanje): zapolni ploskev do ostrih robov, okrogla lisa ali laso v ravnem pogledu; radiranje, odstrani vse; shrani se s telesom in se v 3MF zapiše kot pobarvane ploskve |
+| `layerling_support_rib` | postavi tanko podporno rebro pod spodnjo ploskev dela, natisnjenega poševno na robu, z mostički, visokimi eno plast (Podporno rebro) |
+| `layerling_stencil_bridges` | drži dele plošče z besedilom, izrezanim skoznjo, ki bi izpadli, z mostički, združenimi s ploščo, v podani širini in višini (Mostički šablone) |
 | `layerling_mate_faces` | položi ploskev enega objekta na ploskev drugega, drugo proti drugemu ali poravnano |
 | `layerling_open_group` | odpre skupino, da so njeni deli posamezno spremenljivi, tudi skupino v odprti |
 | `layerling_close_group` | jo spet zapre (»Končano«) ali prekine |

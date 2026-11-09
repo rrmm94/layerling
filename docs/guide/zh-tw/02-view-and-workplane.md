@@ -98,7 +98,7 @@ X 與 [[Esc]] 會關閉視窗；若正在量測，[[Esc]] 會先結束量測。�
 當一個設計的內容超出一個列印板所能列印的範圍時，例如一個盒子連同蓋子和內襯，它可以有多個列印板。按一下 {{ui:editor.group.arrange}} 群組中的 {{ui:editor.tool.buildPlates}}，或在物體的右鍵選單中選擇 {{ui:plates.moveTo}}。檢視底部會出現一列，每個列印板一個按鈕；按鈕上的數字表示該列印板上有多少個物體。
 
 - 每個列印板與工作平面一樣大，列印板並排排列在第一個列印板的右側，相距 20 公釐。物體屬於其底面中心所在的列印板，因此把它拖到另一邊就會放到另一個列印板上。一個設計最多有 12 個列印板。
-- 在列中按一下列印板會顯示它，之後新形狀會放在它上面。{{ui:plates.showAll}} 顯示全部。按兩下列印板或使用 {{ui:plates.rename}} 可以給它取一個名字，例如「蓋子」，名字會寫在列印板上。
+- 在列中按一下列印板會顯示它，之後新形狀和匯入的檔案會放在它上面。{{ui:plates.showAll}} 顯示全部。按兩下列印板或使用 {{ui:plates.rename}} 可以給它取一個名字，例如「蓋子」，名字會寫在列印板上。
 - {{ui:plates.moveLeft}} 和 {{ui:plates.moveRight}} 改變順序，物體隨其列印板一起移動。{{ui:plates.remove}} 移除目前的列印板；其上的物體會移到第一個列印板的相同位置。
 - {{ui:plates.arrange}} 將所選物體（或全部物體）逐行排列到列印板上，先放最大的，間距 5 公釐，並在需要時新增列印板。比列印板大的物體會留在原處。
 - 選擇印表機後，每個物體都按自己的列印板檢查，列印高度從該列印板上最低的物體算起。有物體放不下的列印板，其數字顯示為紅色。
@@ -109,6 +109,7 @@ X 與 [[Esc]] 會關閉視窗；若正在量測，[[Esc]] 會先結束量測。�
 ## 網格與吸附
 
 網格顯示平台的大小。右下角是**吸附步距**：移動與縮放會依這個步距吸附，例如 1 mm。精細作業時調小，粗略擺放時調大。功能區中的 {{ui:editor.tool.snapToGrid}} 會在事後將選取的形狀移到最近的網格交叉點。移動時，形狀也會吸附到其他形狀，參見[選取與排列](chapter:select-and-arrange)。
+不移動滑鼠、用滑鼠中鍵短按一下，會在指標處直接開啟吸附步長選單，在草圖中也一樣；按住中鍵拖曳仍然平移視圖。
 
 > **提示：** 精確拼合零件時，不要一邊轉動檢視。用數字鍵切到俯視或正視，再按 [[O]] 切換為平面顯示。這樣就能立刻看出兩條邊是否真的齊平。
 
@@ -116,15 +117,23 @@ X 與 [[Esc]] 會關閉視窗；若正在量測，[[Esc]] 會先結束量測。�
 
 標題列中的齒輪（{{ui:editor.workspaceSettings}}）會開啟設定。左側有五個區域：{{ui:workspace.appearance}}、{{ui:workspace.measurement}}、{{ui:workspace.workplane}}、{{ui:workspace.shapeDefaults}} 與 {{ui:workspace.history}}。變更會立即生效。底部的 {{ui:workspace.makeDefault}} 會將目前設定儲存為預設值，讓新設計從這些設定開始。開啟的檔案會帶著它自己的設定；旁邊的 {{ui:workspace.useMyDefault}} 會把你儲存的顏色、網格等套用到開啟的設計上，同時保留它的單位。如果你的預設設定裡有印表機，這台印表機連同它的平台尺寸也會一起帶過來；沒有的話，設計保留原有的平台與印表機。右上角的 {{ui:workspace.close}} 則關閉視窗。本節會逐一說明這些設定。
 
+{{ui:workspace.exportSettings}} 把視窗的設定儲存成檔案（layerling-settings-<日期>.json）：顏色、格線、陰影、相機和形狀預設值，以及主題、工具列大小、檢視立方體的角落、形狀顏色和每台印表機的間隙。在另一台電腦上或瀏覽器資料遺失後，{{ui:workspace.importSettings}} 會再次讀取該檔案：它成為新設計的預設值，並像 {{ui:workspace.useMyDefault}} 一樣套用到已開啟的設計。你在鍵盤快速鍵中設定的自訂按鍵也會一起儲存。
+
 ### 外觀：主題、工具列與視圖立方體
 
 {{ui:workspace.theme}} 設定整個程式的配色方案：{{ui:workspace.themeSystem}} 跟隨你的電腦，其餘為 {{ui:workspace.themeLight}}、{{ui:workspace.themeDark}} 與 {{ui:workspace.themeGraphite}}。也可以在編輯器右上角變更。
 
-{{ui:workspace.toolbarSize}} 會讓頂部功能區的按鈕、其形狀選單、左側的檢視列與右側的屬性面板變小或變大：{{ui:workspace.toolbarSizeSmall}}、{{ui:workspace.toolbarSizeMedium}}（一直以來的樣子）或 {{ui:workspace.toolbarSizeLarge}}。小尺寸在筆記型電腦上能為工作平面留出更多空間；大尺寸在大螢幕上或用手點按時更容易命中。使用大按鈕時，若視窗太窄，功能區的各群組會排到第二列。尺寸會儲存在這個瀏覽器中，並套用於所有設計。
+{{ui:workspace.toolbarSize}} 會讓頂部功能區的按鈕、其形狀選單、左側的檢視列與右側的屬性面板變小或變大：{{ui:workspace.toolbarSizeSmall}}、{{ui:workspace.toolbarSizeMedium}}（一直以來的樣子）或 {{ui:workspace.toolbarSizeLarge}}。小尺寸在筆記型電腦上能為工作平面留出更多空間；大尺寸在大螢幕上或用手點按時更容易命中。使用大按鈕時，若視窗太窄，功能區的各群組會排到第二列。尺寸位於設定的「{{ui:workspace.ribbon}}」分頁，會儲存在這個瀏覽器中，並套用於所有設計。
 
 {{ui:workspace.shapeColors}} 會把新形狀的初始顏色（其類型的顏色，或你用 {{ui:inspector.saveDefaults}} 儲存的顏色）顯示在形狀庫的圖片上。如果你比較喜歡灰色圖片，就把它關掉；瀏覽器會記住你的選擇。
 
 {{ui:workspace.viewCubePosition}} 會將視圖立方體放到工作平面的另一個角：{{ui:workspace.viewCubePositionTopLeft}}（一直以來的位置）、{{ui:workspace.viewCubePositionTopRight}}、{{ui:workspace.viewCubePositionBottomLeft}} 或 {{ui:workspace.viewCubePositionBottomRight}}。除了左上角以外，檢視列都會上移到立方體讓出的位置。在右下角時，立方體會正好位於 {{ui:inspector.snapGrid}} 控制項上方。右側開啟形狀屬性時，位於右側的立方體會讓到屬性面板左邊。這個角會儲存在瀏覽器中，並套用於所有設計。視窗較窄時（例如手機），此設定會隱藏，立方體則留在左上角。
+
+### 外觀：功能區中的按鈕
+
+{{ui:workspace.ribbonButtons}} 把你從不使用的群組和按鈕從功能區中移除。按一下群組開啟它的清單：{{ui:workspace.ribbonGroupShown}} 移除整個群組，按鈕旁的勾選框只移除這一個按鈕。{{ui:workspace.ribbonShowAll}} 把一切恢復。沒有按鈕的群組會消失，其他群組隨之前移，一列就能放下更多功能區。
+
+移除的內容只是不在功能區中：命令搜尋（[[Ctrl]]+[[K]]）仍能找到它，它的快速鍵仍能執行它。群組旁邊的箭頭會把它在清單中上移或下移，也就是在功能區中移動；{{ui:workspace.ribbonResetOrder}}會恢復原來的順序。按鈕旁邊的箭頭以同樣方式在其群組內移動它；在「{{ui:editor.group.modify}}」群組中，它仍留在自己的命名分區內。「形狀」群組和「說明」始終保留，「形狀」群組固定在前兩個群組之後。這個瀏覽器會記住你的選擇，它也會寫入 {{ui:workspace.exportSettings}} 的檔案。它適用於 3D 編輯器；草圖有自己的工具列。
 
 ### 外觀：快速模式
 

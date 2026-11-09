@@ -1,9 +1,8 @@
 "use client";
-
 import { editorStorage, scopedKey, classroomWorkspace, registerClassroomSaveGuard } from "@/lib/classroom/client";
-
+import { watchAutoTitles } from "@/lib/autoButtonTitles";
 import { deleteSketchDraft, loadSketchDraft, saveSketchDraft, sketchHasWork, type SketchDraft } from "@/lib/sketchDraftStore";
-import { normalizeNarrowStart, normalizeSlopeCurve, normalizeSlopeSide, shapeSupportsNarrow, shapeSupportsSlope } from "@/lib/slopeAlong";
+import { normalizeNarrowStart, normalizeSlopeCurve, normalizeSlopeFrom, normalizeSlopeSide, shapeSupportsNarrow, shapeSupportsSlope } from "@/lib/slopeAlong";
 import { AlertTriangle, X } from "lucide-react";
 import { bodyLocked, groupHeld, holdsShapeLock, patchFitsShapeLock, shapeLockBroken } from "@/lib/shapeLock";
 import { ObjectListPanel } from "@/components/workplane/ObjectListPanel";
@@ -25,12 +24,14 @@ import { textOffsetAsFill } from "@/lib/textFillChoice";
 import { curvedTextPatch, MAX_TEXT_LETTER_WIDTH, MAX_TEXT_SPACING, MIN_TEXT_LETTER_WIDTH, MIN_TEXT_SPACING } from "@/lib/textGeometry";
 import { normalizeTextEdge } from "@/lib/textEdge";
 import { DEFAULT_TEXT_LAYERS, layerTextKeyringArgument, placedKeyring, layerTextLayersError, nameTagOffsets, normalizeTextLayers, type NameTagKeyring } from "@/lib/textLayers";
+import { limitedText } from "@/lib/textLength";
 import { NAME_TAG_LAYERS, NAME_TAG_LETTER_SIZE, textKerningPatch, textLetterSize, textLetterSizePatch, textShrinkPatch, textSpacingPatch } from "@/lib/nameTag";
 import { DEFAULT_ICON_TAG_WIDTH, ICON_TAG_LAYERS, MAX_ICON_TAG_WIDTH, MIN_ICON_TAG_WIDTH, isIconLayerBody, normalizeIconTagCount } from "@/lib/iconTag";
 import { automaticFlexiJoints, automaticFoldJoints, DEFAULT_FLEXI_FOLD, FLEXI_DEFAULTS, normalizeFlexiOptions, type FlexiOptions } from "@/lib/flexiJoints";
-import { groupedWithMagnets, lidClickBumpsFit, lidDefaults, lidHandleFits, magnetPocketDepth, normalizeLidOptions, type LidOptions } from "@/lib/lidTool";
-import { FIT_TEST_CLEARANCES, getPrinterPlay, MAX_PRINTER_PLAY, MIN_PRINTER_PLAY, normalizePrinterPlay, PRINTER_PLAY_SETTINGS, printerPlayStart, setPrinterPlay, withPrinterPlay } from "@/lib/printerPlay";
+import { LID_HINGE_TYPES, groupedWithMagnets, lidClickBumpsFit, lidDefaults, lidFlipTopFits, lidHandleFits, lidNeckFit, lidNeckFitPatch, lidStandardThread, lidTakesExtras, lidTakesMagnets, lidTetherFits, lidTopEdgeFits, magnetPocketDepth, normalizeLidOptions, type LidOptions, type LidThreadStandard } from "@/lib/lidTool";
+import { FIT_TEST_CLEARANCES, getPrinterPlay, MAX_PRINTER_PLAY, MIN_PRINTER_PLAY, normalizePrinterPlay, PRINTER_PLAY_SETTINGS, printerPlayPrinter, printerPlaySource, printerPlayStart, setPrinterPlay, setPrinterPlayPrinter, withPrinterPlay } from "@/lib/printerPlay";
 import { FIT_TEST_PIN_DIAMETER, fitTestHoles, fitTestShape, fitTestSpot } from "@/lib/fitTest";
+import { fitTestPinBaseChosen } from "@/lib/breakawayBase";
 import { CABLE_DEFAULTS, cableChannelShapeFields, cableEndNear, cableGrid, findCableChannel, normalizeCableOptions, type CableChannelError, type CableChannelOptions, type CableChannelResult, type CableEnd, type CableGrid, type Vec3 as CableVec3 } from "@/lib/cableChannel";
 import { CableChannelPanel, type CableChannelEndName, type CableChannelPanelResult } from "./workplane/CableChannelPanel";
 import type { CadLidRequest } from "@/lib/cadLid";
@@ -72,14 +73,22 @@ import { FlexiPanel, type FlexiToolSettings } from "./workplane/FlexiPanel";
 import { LidPanel } from "./workplane/LidPanel";
 import { DeleteFacePanel } from "./workplane/DeleteFacePanel";
 import { MateFacesPanel } from "./workplane/MateFacesPanel";
-import { concentricMotion, mateMotion, type FacePick, type MateMode } from "@/lib/mateFaces";
+import { ALL_MATE_AXES, concentricMotion, mateMotion, pointMotion, pointTurnAboutAxis, pointTurnAboutPivot, turnedAbout, type FacePick, type MateAxes, type MateMode, type PointPick } from "@/lib/mateFaces";
 import { roundFaceNear } from "@/lib/roundFaceAxis";
 import { carriedOntoFace } from "@/lib/carryOntoFace";
 import { HolePatternPanel } from "./workplane/HolePatternPanel";
+import { PAINT_VIEW_SIDES, paintedBodyMesh, paintedExportFaceColors, paintLassoStroke, paintSideLasso, paintStrokeAt, paintSurfaceNormalAt, rebasePaintStrokes, type PaintLassoView } from "@/lib/paintMesh";
+import { canPaintShape, DEFAULT_PAINT_TOOL, designPaintColors, normalizePaintTool, paintColors, paintStartColor, PAINT_MAX_STROKES, type PaintStroke, type PaintToolSettings } from "@/lib/paint";
+import { normalizeHexColor } from "@/lib/coloredImport";
+import { PaintPanel } from "./workplane/PaintPanel";
 import { FaceToolPanel } from "./workplane/FaceToolPanel";
+import { SupportRibPanel } from "./workplane/SupportRibPanel";
 import { DEFAULT_FACE_TOOL, faceToolSettingsOn, normalizeFaceTool, type FaceToolSettings } from "@/lib/faceTool";
+import { buildSupportRib, normalizeSupportRib, readSupportRibSettings, supportRibFace, supportRibShape, writeSupportRibSettings, type SupportRibFace, type SupportRibPlan, type SupportRibSettings } from "@/lib/supportRib";
+import { StencilBridgePanel } from "./workplane/StencilBridgePanel";
+import { normalizeStencilBridgeTool, readStencilBridgeToolSettings, stencilBridgeBase, stencilBridgeBoxes, stencilBridgeLevels, stencilBridgePlan, writeStencilBridgeToolSettings, STENCIL_BRIDGE_POSITIONS, type StencilBridgePlan, type StencilBridgePosition, type StencilBridgeToolSettings } from "@/lib/stencilBridgeTool";
 import { faceToolBody } from "@/lib/faceToolBody";
-import { DEFAULT_HOLE_PATTERN, normalizeHolePattern, type HolePatternSettings } from "@/lib/holePattern";
+import { DEFAULT_HOLE_PATTERN, holeTiltRadians, normalizeHolePattern, type HolePatternSettings } from "@/lib/holePattern";
 import { holePatternCustomFootprint, holePatternScrewPatch, holePatternScrewSizes, holePatternShapes, isRoundWallFace, readHolePatternFace, readPerforableFace, type HolePatternFace, type PerforableFace } from "@/lib/holePatternShapes";
 import { honeycombReplacementParts } from "@/lib/honeycombMigration";
 import { groupNeedsThreadRecut, placeRecutGroup, threadRecutParts } from "@/lib/groupThreadRecut";
@@ -161,6 +170,7 @@ import { dedupeProjectAssets } from "@/lib/projectAssets";
 import { useCustomShapes } from "@/lib/useCustomShapes";
 import { packBackup } from "@/lib/projectBackup";
 import { MyShapesSection } from "@/components/workplane/MyShapesSection";
+import { searchCustomShapes } from "@/lib/customShapeSearch";
 import { addLineIntersectionPoints, onlyMovesPoints, splitSketchSegment } from "@/lib/sketchPointRefinement";
 import { joinOpenEnds } from "@/lib/sketchPointJoin";
 import { mirrorSketchSelection, SKETCH_MIRROR_HORIZONTAL, SKETCH_MIRROR_VERTICAL, sketchMirrorAxisThroughSegment } from "@/lib/sketchMirror";
@@ -225,6 +235,7 @@ import { projectedEdgesPath } from "@/lib/sketchEdges";
 import { useRememberedFlag } from "@/lib/useRememberedFlag";
 import { BUG_REPORT_FILE, bugReportText, rememberBugReportEvent, type BugReportEvent } from "@/lib/bugReport";
 import { formatLengthMm, lengthDisplayUnit } from "@/lib/measurementUnits";
+import { tightBendShown } from "@/lib/cadTightBends";
 import { angleAtVertex, angleBetweenFaces, formatFaceAngles, formatProtractorAngle } from "@/lib/protractor";
 import { wrapMeshAroundCylinder, type CylinderWrapError } from "@/lib/cylinderWrap";
 import { normalizeSurfaceTexture, SURFACE_TEXTURE_AXES, SURFACE_TEXTURE_CAP_EDGES, SURFACE_TEXTURE_CAP_STYLES, SURFACE_TEXTURE_CARBON_WEAVES, SURFACE_TEXTURE_BARK_TYPES, SURFACE_TEXTURE_BRICK_BONDS, SURFACE_TEXTURE_TIMBER_BRACINGS, SURFACE_TEXTURE_BUMP_GRIDS, SURFACE_TEXTURE_CRACK_STARTS, SURFACE_TEXTURE_CRACK_STYLES, SURFACE_TEXTURE_DETAILS, SURFACE_TEXTURE_DIRECTIONS, SURFACE_TEXTURE_IMAGES, SURFACE_TEXTURE_LIMITS, SURFACE_TEXTURE_PATTERNS, SURFACE_TEXTURE_PROFILES, SURFACE_TEXTURE_PROJECTIONS, SURFACE_TEXTURE_TILINGS, SURFACE_TEXTURE_FACE_NAMES, normalizeSurfaceTextureFaces, surfaceTextureFacePick, surfaceTexturePickedFaceIds, toggleSurfaceTexturePickedFace, type SurfaceTextureFace, type SurfaceTextureFacePick, SURFACE_TEXTURE_WOOD_CUTS, SURFACE_TEXTURE_WOOD_TYPES, type SurfaceTextureMask, type SurfaceTextureSettings } from "@/lib/surfaceTexture";
@@ -245,7 +256,7 @@ import { FOOTPRINT_CUT_HEIGHT, footprintCutOffset, projectSectionPoint, SECTION_
 import type { AlignAxis, AlignHandleStatus, AlignSpread, AlignTarget, EdgeTreatmentFeature, GridSize, ParametricSource, ProjectAsset, ProjectAttachment, ShapeAsset, ShapeCustomization, ShapeKind, SketchImage, SketchOperation, SketchPoint, SketchProfile, SketchRevolveSettings, SketchSegment, ShellEdges, ShellOpenings, ShellSide, SweepAnchor, WorkplaneNote, WorkplaneShape, WorkplaneWorkspaceSettings } from "@/types/layerling";
 import { type MeshData, type Cuboid, type ShapeUpdatePatch, type ManifoldSolid, MIN_SHAPE_DIMENSION, resetManifoldRuntime, cleanModelDimension, getManifoldRuntime, meshForShape, meshReachAlong, formatTriangleCount, boundsForShapes, boundsForCuboids, meshAabb, boundsForPositions, quantizedPointKey, sameShapeApartFromPlacement } from "@/lib/editorMeshCore";
 import { meshPartCount } from "@/lib/meshPartCount";
-import { buildGroupedShapeOffThread, exportSolidVolumeOffThread, callOffFaceRead, faceReadInWorker, createFaceReadKeeper, faceReadPositionsOffThread, simplifyTrianglePositionsOffThread, splitShapesByPlaneOffThread, previewSplitConnectorsOffThread, articulateShapesOffThread, lidForShapesOffThread, checkClearanceOffThread, checkPrintOffThread, subscribeGeometryBusy, warmGeometryWorker } from "@/lib/geometryWorker";
+import { buildGroupedShapeOffThread, exportSolidVolumeOffThread, callOffFaceRead, faceReadInWorker, createFaceReadKeeper, faceReadPositionsOffThread, simplifyTrianglePositionsOffThread, splitShapesByPlaneOffThread, previewSplitConnectorsOffThread, articulateShapesOffThread, lidForShapesOffThread, lidTopOffThread, checkClearanceOffThread, checkPrintOffThread, subscribeGeometryBusy, warmGeometryWorker } from "@/lib/geometryWorker";
 import { roundedAlignedValue } from "@/lib/alignRounding";
 import { buildSketchLoftFromSelection, canSketchLoft } from "@/lib/sketchLoft";
 import { alignBounds, sizeAlignmentState, sizedShapesForSelection } from "@/lib/alignSize";
@@ -326,6 +337,11 @@ type OpenGroupOutcome = { ok: boolean; message: string; partIds?: string[]; grou
 type WithoutRequestId<T> = T extends unknown ? Omit<T, "requestId"> : never;
 type CadModifierWorkerPayload = WithoutRequestId<CadModifierWorkerRequest>;
 type CadPreviewPayload = Extract<CadModifierWorkerPayload, { type: "preview" }>;
+/** A fillet refused at a curve bending tighter than its radius (lib/cadTightBends.ts, #1473), in the user's unit. */
+function tightBendError(bend: number, workspace: WorkplaneWorkspaceSettings) {
+  return t("edge.errorTightBend", { bend: `${formatLengthMm(tightBendShown(bend), workspace.accuracy)} ${lengthDisplayUnit(workspace).label}` });
+}
+
 /** What the status line says when the sharp inner corners at the picked edges were treated first (lib/cadInnerCorners.ts). */
 function innerCornersNotice(corners: { count: number; amount: number }, kind: CadModifierKind | undefined, workspace: WorkplaneWorkspaceSettings) {
   const size = `${formatLengthMm(corners.amount, workspace.accuracy)} ${lengthDisplayUnit(workspace).label}`;
@@ -393,7 +409,7 @@ type SplitSession = {
   error: string | null;
   /** The next click on a face sets the plane's position. */
   picking: boolean;
-  /** Dowels or plugs to line the halves up again, or none (Discussion #832); each opening starts from none. */
+  /** Dowels, plugs or a dovetail to line the halves up again, or none (Discussion #832); each opening starts from none. */
   connectors: SplitConnectorOptions;
 };
 
@@ -1146,6 +1162,9 @@ function parametricSourceForBake(shape: WorkplaneShape): ParametricSource | unde
     slopeEnd: shape.slopeEnd,
     slopeSide: shape.slopeSide,
     slopeCurve: shape.slopeCurve,
+    slopeFrom: shape.slopeFrom,
+    sideDrop: shape.sideDrop,
+    sideCurve: shape.sideCurve,
     narrowEnd: shape.narrowEnd,
     narrowSide: shape.narrowSide,
     narrowCurve: shape.narrowCurve,
@@ -1189,6 +1208,9 @@ function rebuiltParametricShape(shape: WorkplaneShape, patch: Partial<WorkplaneS
     slopeEnd: source.slopeEnd,
     slopeSide: source.slopeSide,
     slopeCurve: source.slopeCurve,
+    slopeFrom: source.slopeFrom,
+    sideDrop: source.sideDrop,
+    sideCurve: source.sideCurve,
     narrowEnd: source.narrowEnd,
     narrowSide: source.narrowSide,
     narrowCurve: source.narrowCurve,
@@ -1302,6 +1324,9 @@ function bakeShapeTransformIntoMesh(shape: WorkplaneShape): WorkplaneShape {
     slopeEnd: undefined,
     slopeSide: undefined,
     slopeCurve: undefined,
+    slopeFrom: undefined,
+    sideDrop: undefined,
+    sideCurve: undefined,
     narrowEnd: undefined,
     narrowSide: undefined,
     narrowCurve: undefined,
@@ -1899,10 +1924,35 @@ function matedShapes(shapes: WorkplaneShape[], source: FacePick, target: FacePic
 }
 
 /**
- * "Align faces" switched to another way of meeting. Concentric needs round
- * faces: a flat face already clicked is asked for again.
+ * "Point to point" (Discussion #1491): the body moves straight, without
+ * turning, so its point lands on the other - along the axes switched on only.
  */
-function mateToolWithMode<T extends { step: "source" | "target" | "ready"; source: FacePick | null; target: FacePick | null; mode: MateMode }>(tool: T, mode: MateMode): T {
+function pointMatedShapes(shapes: WorkplaneShape[], shapeId: string, source: PointPick["point"], target: PointPick["point"], axes: MateAxes): WorkplaneShape[] {
+  const motion = pointMotion(source, target, axes);
+  return shapes.map((shape) => shape.id !== shapeId ? shape : canonicalizeShape({
+    ...shape,
+    x: cleanNearZero(shape.x + motion.x),
+    z: cleanNearZero(shape.z + motion.z),
+    elevation: cleanNearZero((shape.elevation ?? 0) + motion.y),
+  }));
+}
+
+/**
+ * "Point to point", second or third pair (Discussion #1491): the body turns
+ * by `rotation` about `pivot`, the first point, which stays where it is.
+ */
+function pointTurnedShapes(shapes: WorkplaneShape[], shapeId: string, rotation: THREE.Quaternion, pivot: PointPick["point"]): WorkplaneShape[] {
+  const center = new THREE.Vector3(pivot.x, pivot.y, pivot.z);
+  return shapes.map((shape) => shape.id !== shapeId ? shape : canonicalizeShape({ ...shape, ...rotatedGeometryShapePatch(shape, rotation, center) }));
+}
+
+/**
+ * "Align faces" switched to another way of meeting. Concentric needs round
+ * faces: a flat face already clicked is asked for again. Points and faces are
+ * picked apart, so switching to or from "Point to point" starts over.
+ */
+function mateToolWithMode<T extends { step: "source" | "target" | "ready"; source: FacePick | null; target: FacePick | null; sourcePoint: PointPick | null; targetPoint: PointPick | null; mode: MateMode; pair: 1 | 2 | 3; pivot: PointPick["point"] | null; axisPoint: PointPick["point"] | null }>(tool: T, mode: MateMode): T {
+  if ((mode === "point") !== (tool.mode === "point")) return { ...tool, mode, step: "source", source: null, target: null, sourcePoint: null, targetPoint: null, pair: 1, pivot: null, axisPoint: null };
   if (mode !== "concentric") return { ...tool, mode };
   if (tool.source && !tool.source.axis) return { ...tool, mode, step: "source", source: null, target: null };
   if (tool.target && !tool.target.axis) return { ...tool, mode, step: "target", target: null };
@@ -2732,6 +2782,9 @@ function mcpSlopePatch(shape: WorkplaneShape, params: Record<string, unknown>): 
   if (typeof params.slopeSide === "string") patch.slopeSide = normalizeSlopeSide(shape.kind, params.slopeSide);
   if (typeof params.slopeCurve === "number") patch.slopeCurve = normalizeSlopeCurve(params.slopeCurve);
   if (typeof params.slopeEnd === "number" && Number.isFinite(params.slopeEnd)) patch.slopeEnd = Math.max(0, params.slopeEnd);
+  if (typeof params.slopeFrom === "string") patch.slopeFrom = normalizeSlopeFrom(params.slopeFrom);
+  if (typeof params.sideDrop === "number" && Number.isFinite(params.sideDrop)) patch.sideDrop = Math.max(0, params.sideDrop);
+  if (typeof params.sideCurve === "number") patch.sideCurve = normalizeSlopeCurve(params.sideCurve);
   if (!shapeSupportsNarrow(shape)) return patch;
   if (typeof params.narrowSide === "string") patch.narrowSide = normalizeSlopeSide(shape.kind, params.narrowSide);
   if (typeof params.narrowCurve === "number") patch.narrowCurve = normalizeSlopeCurve(params.narrowCurve);
@@ -3231,8 +3284,16 @@ export function LayerlingEditor({
     step: "source" | "target" | "ready";
     source: FacePick | null;
     target: FacePick | null;
+    sourcePoint: PointPick | null;
+    targetPoint: PointPick | null;
     mode: MateMode;
     gap: number;
+    axes: MateAxes;
+    // "Point to point" (Discussion #1491): pair 2 turns the body about `pivot`, the first point
+    // where it landed; pair 3 about the line from `pivot` to `axisPoint`, where the second landed.
+    pair: 1 | 2 | 3;
+    pivot: PointPick["point"] | null;
+    axisPoint: PointPick["point"] | null;
   } | null>(null);
   // "Hole pattern": a flat face or a round wall (#1393) of the selected body, then the holes that fit it (#223).
   const [holePatternTool, setHolePatternTool] = useState<{
@@ -3254,6 +3315,28 @@ export function LayerlingEditor({
     busy: boolean;
   } | null>(null);
   const [faceToolPreview, setFaceToolPreview] = useState<{ shape: WorkplaneShape | null; empty: boolean } | null>(null);
+  // "Paint" (paint.ts): strokes of colour on the selected body, made in the view while the panel is open. The settings
+  // stay as they were last used, for the next body in this session.
+  const [paintTool, setPaintTool] = useState<{ sourceId: string; settings: PaintToolSettings } | null>(null);
+  const paintSettingsRef = useRef<PaintToolSettings>(DEFAULT_PAINT_TOOL);
+  // Whether a colour was chosen in the panel this session: then a new body starts with it.
+  const paintColorChosenRef = useRef(false);
+  // "Support rib" (Discussion #1385): the lower face of a tilted part, then a thin rib under it with bridges on the layers.
+  const [supportRibTool, setSupportRibTool] = useState<{
+    sourceId: string;
+    step: "pick" | "ready";
+    face: SupportRibFace | null;
+    settings: SupportRibSettings;
+    busy: boolean;
+  } | null>(null);
+  const [supportRibPreview, setSupportRibPreview] = useState<{ shape: WorkplaneShape | null; plan: SupportRibPlan | null; problem: string | null } | null>(null);
+  const supportRibPreviewRunRef = useRef(0);
+  const supportRibPickRunRef = useRef(0);
+  const supportRibPickAbortRef = useRef<AbortController | null>(null);
+  // "Stencil bridges" (Discussion #1438): the parts of a plate with text cut through that would fall out, held by bridges.
+  const [stencilBridgeTool, setStencilBridgeTool] = useState<{ sourceIds: string[]; settings: StencilBridgeToolSettings; busy: boolean } | null>(null);
+  const [stencilBridgePreview, setStencilBridgePreview] = useState<{ bridges: WorkplaneShape[]; plan: StencilBridgePlan; replaced: number } | null>(null);
+  const stencilBridgePreviewRunRef = useRef(0);
   const faceToolPreviewRunRef = useRef(0);
   const faceToolPickRunRef = useRef(0);
   const faceToolPickAbortRef = useRef<AbortController | null>(null);
@@ -3310,6 +3393,7 @@ export function LayerlingEditor({
       splitAbortRef.current?.abort();
       holePatternPickAbortRef.current?.abort();
       faceToolPickAbortRef.current?.abort();
+      supportRibPickAbortRef.current?.abort();
       pivotPickAbortRef.current?.abort();
     };
   }, [dismissNotice, setNotice]);
@@ -3718,8 +3802,13 @@ export function LayerlingEditor({
           ...current,
           busy: false,
           preview: null,
-          error: cadModifierUserErrorMessage(message.message) ?? message.message,
-          failedEdgeIds: message.failedEdgeIds ? conflictEdgeIds(current, message.failedEdgeIds) : [],
+          error: message.tightestBend !== undefined
+            ? tightBendError(message.tightestBend, workspaceSettingsRef.current)
+            : cadModifierUserErrorMessage(message.message) ?? message.message,
+          // The edges with the tight bend are the cause, whichever edge was picked last.
+          failedEdgeIds: message.tightestBend !== undefined
+            ? message.failedEdgeIds ?? []
+            : message.failedEdgeIds ? conflictEdgeIds(current, message.failedEdgeIds) : [],
         } : current);
         // Ein zu grosser Radius scheitert - der inzwischen gewaehlte kleinere darf es trotzdem versuchen.
         if (cadPreviewQueueRef.current.settle(message.requestId).status !== "sent") {
@@ -3779,24 +3868,7 @@ export function LayerlingEditor({
     return () => globalThis.clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const applyTitles = () => {
-      document.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
-        if (button.title) {
-          return;
-        }
-        const label = button.getAttribute("aria-label") ?? button.textContent?.trim();
-        if (label) {
-          button.title = label.replace(/\s+/g, " ");
-        }
-      });
-    };
-
-    applyTitles();
-    const observer = new MutationObserver(applyTitles);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label"] });
-    return () => observer.disconnect();
-  }, []);
+  useEffect(() => watchAutoTitles(document), []);
 
   useEffect(() => {
     setSystemClipboardSupported(Boolean(navigator.clipboard));
@@ -3849,6 +3921,11 @@ export function LayerlingEditor({
     workspaceSettingsRef.current = workspaceSettings;
   }, [workspaceSettings]);
 
+  // The tools start from the play of the printer this design prints on (Discussion #1406).
+  useEffect(() => {
+    setPrinterPlayPrinter(workspaceSettings.printer);
+  }, [workspaceSettings.printer]);
+
   useEffect(() => {
     snapGridRef.current = snapGrid;
   }, [snapGrid]);
@@ -3868,6 +3945,12 @@ export function LayerlingEditor({
   useEffect(() => {
     projectInfoRef.current = { projectId: projectId ?? null, projectName, projectCreatedAt };
   }, [projectCreatedAt, projectId, projectName]);
+
+  // The MCP bridge renames the project the way the pencil beside its name does (Discussion #1483).
+  const onProjectNameChangeRef = useRef(onProjectNameChange);
+  useEffect(() => {
+    onProjectNameChangeRef.current = onProjectNameChange;
+  }, [onProjectNameChange]);
 
   useEffect(() => {
     historyIndexRef.current = historyIndex;
@@ -3929,7 +4012,7 @@ export function LayerlingEditor({
   const selectedShape = selectedShapes.at(-1) ?? null;
   const hasSelection = selectedShapes.length > 0;
 
-  const faceJoinSourceId = faceTool?.step === "pick" ? faceTool.sourceId : holePatternTool?.step === "pick" ? holePatternTool.sourceId : null;
+  const faceJoinSourceId = faceTool?.step === "pick" ? faceTool.sourceId : holePatternTool?.step === "pick" ? holePatternTool.sourceId : supportRibTool?.step === "pick" ? supportRibTool.sourceId : null;
   const faceJoinSource = faceJoinSourceId ? shapes.find((shape) => shape.id === faceJoinSourceId) : undefined;
   // Only a read that runs in the geometry worker is made ahead: one on the page would hold the page as the tool opens.
   const faceJoinFingerprint = useMemo(
@@ -4170,6 +4253,16 @@ export function LayerlingEditor({
     setSelectedIds(shapes.filter((shape) => !shape.hidden && !shape.imagePlate).map((shape) => shape.id));
     setNotice(t("status.selectedAllVisible"));
   }, [shapes]);
+  // Invert selection (Discussion #1472): every visible part that is not selected, as Select all counts them. Without a
+  // selection it is Select all. MCP's select_objects with invert goes through here too.
+  const invertSelection = useCallback((fromIds?: string[]): string[] => {
+    const selected = new Set(fromIds ?? selectedIdsRef.current);
+    const next = shapesRef.current.filter((shape) => !shape.hidden && !shape.imagePlate && !selected.has(shape.id)).map((shape) => shape.id);
+    setSelectedIds(next);
+    selectedIdsRef.current = next;
+    setNotice(next.length === 0 ? t("status.invertedNone") : next.length === 1 ? t("status.invertedOne") : t("status.invertedMany", { count: next.length }));
+    return next;
+  }, []);
   const effectiveAlignAnchorId = useMemo(
     () => effectiveAlignmentAnchorId(selectedShapes, alignAnchorId),
     [alignAnchorId, selectedShapes],
@@ -4221,6 +4314,10 @@ export function LayerlingEditor({
         ? [...shapes, ...holePatternPreview.holes]
         : faceToolPreview?.shape
         ? [...shapes, faceToolPreview.shape]
+        : supportRibPreview?.shape
+        ? [...shapes, supportRibPreview.shape]
+        : stencilBridgePreview?.bridges.length
+        ? [...shapes, ...stencilBridgePreview.bridges]
         : edgeModifier?.preview && cadModifierBaseShapeRef.current
         ? shapes.map((shape) => shape.id === cadModifierBaseShapeRef.current?.id ? edgeModifier.preview as WorkplaneShape : shape)
         : alignMode && alignPreview?.spread
@@ -4232,7 +4329,7 @@ export function LayerlingEditor({
         : mirrorMode && mirrorPreviewAxis
           ? mirroredShapesForSelection(shapes, selectedIds, selectedShapes, mirrorPreviewAxis).nextShapes
           : shapes,
-    [alignAxes, alignMode, alignPreview, alignSelection, arrayPreview, edgeModifier?.preview, effectiveAlignAnchorId, faceToolPreview, holePatternPreview, mirrorMode, mirrorPreviewAxis, selectedIds, selectedShapes, shapes],
+    [alignAxes, alignMode, alignPreview, alignSelection, arrayPreview, edgeModifier?.preview, effectiveAlignAnchorId, faceToolPreview, supportRibPreview, stencilBridgePreview, holePatternPreview, mirrorMode, mirrorPreviewAxis, selectedIds, selectedShapes, shapes],
   );
   // The preview of an intersection (#372): the operands see-through, and what they share as a body of its own on top.
   const [intersectPreviewIds, setIntersectPreviewIds] = useState<string[] | null>(null);
@@ -5048,6 +5145,7 @@ export function LayerlingEditor({
     updateWorkspace: updateProjectWorkspaceSettings,
     setNotice,
   });
+  const { ontoActivePlate } = buildPlates;
   plateResizeRef.current = (before, after) => commitShapes(shapesAfterPlateResize(before, after, shapesRef.current), selectedIdsRef.current);
 
   /**
@@ -6506,6 +6604,59 @@ export function LayerlingEditor({
     sketchFillUpdateTimerRef.current.set(id, timer);
   }, [commitShapes, rebuildSketchBodyFill]);
 
+  /**
+   * A revolved sketch body built again with other settings, where it stands and as large as it is; null when it is gone,
+   * no longer a revolve, or `stillWanted` says a newer change came in meanwhile. The panel's fields and the AI bridge use it.
+   */
+  const revolvedShapeWithSettings = useCallback(async (id: string, settings: SketchRevolveSettings, stillWanted: () => boolean = () => true) => {
+    const source = shapesRef.current.find((shape) => shape.id === id);
+    if (!source?.sketchProfile || source.sketchOperation !== "revolve") return null;
+    const generated = await shapeFromRevolvedSketchProfile(source.sketchProfile, settings, source);
+    if (!stillWanted()) return null;
+    const current = shapesRef.current.find((shape) => shape.id === id);
+    if (!current?.importedMesh || current.sketchOperation !== "revolve") return null;
+    const widthScale = current.width / Math.max(0.001, current.importedMesh.baseWidth);
+    const depthScale = current.depth / Math.max(0.001, current.importedMesh.baseDepth);
+    const heightScale = current.height / Math.max(0.001, current.importedMesh.baseHeight);
+    const width = generated.width * widthScale;
+    const depth = generated.depth * depthScale;
+    const height = generated.height * heightScale;
+    // The body is centred on its outline, which moves with the sweep: carry its middle so the axis stays put.
+    const runtime = await getManifoldRuntime();
+    if (!stillWanted()) return null;
+    const turned = revolveBuildProfile(runtime, source.sketchProfile);
+    const shift = revolveAxisShift(
+      current,
+      { profile: turned, settings: current.sketchRevolve ?? {} },
+      { profile: turned, settings },
+      widthScale,
+      depthScale,
+    );
+    return canonicalizeShape({
+      ...generated,
+      id: current.id,
+      name: current.name,
+      color: current.color,
+      hole: current.hole,
+      x: current.x + shift.x,
+      z: current.z + shift.z,
+      elevation: (current.elevation ?? 0) + shift.y,
+      width,
+      depth,
+      height,
+      size: Math.max(width, depth),
+      rotation: current.rotation,
+      rotationX: current.rotationX,
+      rotationZ: current.rotationZ,
+      mirrorX: current.mirrorX,
+      mirrorY: current.mirrorY,
+      mirrorZ: current.mirrorZ,
+      locked: current.locked,
+      hidden: current.hidden,
+      sketchRevolve: settings,
+    });
+  }, []);
+
   const scheduleRevolveShapeUpdate = useCallback((id: string, settings: SketchRevolveSettings) => {
     const previousTimer = sketchRevolveUpdateTimerRef.current.get(id);
     if (previousTimer !== undefined) window.clearTimeout(previousTimer);
@@ -6516,51 +6667,9 @@ export function LayerlingEditor({
       const source = shapesRef.current.find((shape) => shape.id === id);
       if (!source?.sketchProfile || source.sketchOperation !== "revolve") return;
       setNotice(t("status.updatingRevolve"), true);
-      void shapeFromRevolvedSketchProfile(source.sketchProfile, settings, source)
-        .then(async (generated) => {
-          if (sketchRevolveUpdateRequestRef.current.get(id) !== requestId) return;
-          const current = shapesRef.current.find((shape) => shape.id === id);
-          if (!current?.importedMesh || current.sketchOperation !== "revolve") return;
-          const widthScale = current.width / Math.max(0.001, current.importedMesh.baseWidth);
-          const depthScale = current.depth / Math.max(0.001, current.importedMesh.baseDepth);
-          const heightScale = current.height / Math.max(0.001, current.importedMesh.baseHeight);
-          const width = generated.width * widthScale;
-          const depth = generated.depth * depthScale;
-          const height = generated.height * heightScale;
-          // The body is centred on its outline, which moves with the sweep: carry its middle so the axis stays put.
-          const runtime = await getManifoldRuntime();
-          if (sketchRevolveUpdateRequestRef.current.get(id) !== requestId) return;
-          const turned = revolveBuildProfile(runtime, source.sketchProfile!);
-          const shift = revolveAxisShift(
-            current,
-            { profile: turned, settings: current.sketchRevolve ?? {} },
-            { profile: turned, settings },
-            widthScale,
-            depthScale,
-          );
-          const updated = canonicalizeShape({
-            ...generated,
-            id: current.id,
-            name: current.name,
-            color: current.color,
-            hole: current.hole,
-            x: current.x + shift.x,
-            z: current.z + shift.z,
-            elevation: (current.elevation ?? 0) + shift.y,
-            width,
-            depth,
-            height,
-            size: Math.max(width, depth),
-            rotation: current.rotation,
-            rotationX: current.rotationX,
-            rotationZ: current.rotationZ,
-            mirrorX: current.mirrorX,
-            mirrorY: current.mirrorY,
-            mirrorZ: current.mirrorZ,
-            locked: current.locked,
-            hidden: current.hidden,
-            sketchRevolve: settings,
-          });
+      void revolvedShapeWithSettings(id, settings, () => sketchRevolveUpdateRequestRef.current.get(id) === requestId)
+        .then((updated) => {
+          if (!updated) return;
           commitShapes(shapesRef.current.map((shape) => shape.id === id ? updated : shape), selectedIdsRef.current, t("status.revolveUpdated"));
         })
         .catch((error) => {
@@ -6570,7 +6679,7 @@ export function LayerlingEditor({
         });
     }, 120);
     sketchRevolveUpdateTimerRef.current.set(id, timer);
-  }, [commitShapes]);
+  }, [commitShapes, revolvedShapeWithSettings]);
 
   const updateShape = useCallback(
     (id: string, patch: ShapeUpdatePatch) => {
@@ -7386,12 +7495,12 @@ export function LayerlingEditor({
       controller.abort();
     };
   }, [splitConnectorQuestion]); // eslint-disable-line react-hooks/exhaustive-deps -- the question names everything it reads
-  const splitConnectorMarks = useMemo(
-    () => splitSession && splitSession.connectors.kind !== "none" && splitConnectorPreview.state === "done" && splitConnectorPreview.points.length
-      ? { points: splitConnectorPreview.points, radius: connectorHoleRadius(splitSession.connectors) }
-      : null,
-    [splitConnectorPreview, splitSession],
-  );
+  const splitConnectorMarks = useMemo(() => {
+    if (!splitSession || splitSession.connectors.kind === "none" || splitConnectorPreview.state !== "done") return null;
+    // A dovetail shows its tongues' outlines, dowels and plugs the rings of their holes.
+    if (splitSession.connectors.kind === "dovetail") return splitConnectorPreview.tongues?.length ? { points: [], radius: 0, tongues: splitConnectorPreview.tongues } : null;
+    return splitConnectorPreview.points.length ? { points: splitConnectorPreview.points, radius: connectorHoleRadius(splitSession.connectors) } : null;
+  }, [splitConnectorPreview, splitSession]);
 
   const changeSplitRotation = useCallback((index: 0 | 1, rotation: number) => {
     const angle = Math.max(-180, Math.min(180, rotation));
@@ -8545,8 +8654,9 @@ export function LayerlingEditor({
    * and with posts for the magnets, which the lip has to go round: the mesh lid stays then.
    */
   const exactLid = useCallback(async (targets: readonly WorkplaneShape[], options: LidOptions, meshLid: WorkplaneShape, magnets?: { posts: WorkplaneShape[]; pockets: WorkplaneShape[] }): Promise<WorkplaneShape | null> => {
-    // A hinged lid stays the mesh lid for now: the exact one has no knuckles, nor click bumps or a pull tab.
-    if (targets.length !== 1 || targets[0].hole || magnets?.posts.length || options.hinge || options.clickBumps || options.handle === "tab") return null;
+    // A hinged lid stays the mesh lid for now: the exact one has no knuckles, nor click bumps or a pull tab; nor a thread,
+    // screwed on or in, a bayonet's slots or a slide-in lid's tongues.
+    if (targets.length !== 1 || targets[0].hole || magnets?.posts.length || options.hinge || options.clickBumps || options.handle === "tab" || options.type === "screw" || options.type === "screwIn" || options.type === "bayonet" || options.type === "slide") return null;
     const pocketDepth = magnetPocketDepth(options);
     const request: CadLidRequest = {
       type: options.type,
@@ -8587,9 +8697,9 @@ export function LayerlingEditor({
     if (!targets.some((shape) => !shape.hole)) return fail(t("lid.error.needsBody"));
     // What is not given starts from the printer's play where it follows it, as the panel does.
     const options = normalizeLidOptions(given, lidDefaults(getPrinterPlay()));
-    // The pockets, the hinge's knuckles, the click bumps' dimples and a finger notch go into the body, so it must be free
-    // to change and one body.
-    const changesBody = options.magnets || options.hinge || options.clickBumps || options.handle === "notch";
+    // The pockets, the hinge's knuckles, the click bumps' dimples, a finger notch, a screw lid's thread (outside or in the
+    // opening) a bayonet's lugs and a slide-in lid's grooves go into the body, so it must be free to change and one body.
+    const changesBody = options.magnets || options.hinge || options.clickBumps || options.handle === "notch" || options.type === "screw" || options.type === "screwIn" || options.type === "bayonet" || options.type === "slide";
     if (changesBody && targets.some((shape) => bodyLocked(shape))) return fail(t("status.objectLocked"));
     if (changesBody && targets.some((shape) => shape.groupOperation === "bundle")) return fail(t("lid.error.magnetsBundle"));
     const sourceFingerprint = projectShapesFingerprint(shapesRef.current);
@@ -8603,42 +8713,110 @@ export function LayerlingEditor({
     if (changed()) return fail(t("lid.error.changed"));
     const type = t(`lid.type.${options.type}`);
     const hinge = result.hinge;
-    // What else the lid has, said after what it is: its click bumps, its tab, or the notch in the body.
+    const screw = result.screw;
+    // A standard's cap made alone: the body is not that standard's neck and stays as it is.
+    const screwThread = screw?.thread ?? null;
+    const bayonet = result.bayonet;
+    const slide = result.slide;
+    const tether = result.tether;
+    const flipTop = result.flipTop;
+    // What else the lid has, said after what it is: its click bumps, its tab, the notch in the body, or a tether, or a flip-top.
     const extras = [
-      ...(result.clickBumps ? [t("status.lidClickBumps", { count: result.clickBumps.count })] : []),
-      ...(result.handle?.style === "tab" ? [t("status.lidHandleTab")] : result.handle?.style === "notch" ? [t("status.lidHandleNotch")] : []),
+      ...(result.clickBumps ? [t("status.lidClickBumps", { count: result.clickBumps.count })] : slide?.bumps ? [t("status.lidSlideBump")] : []),
+      ...(result.handle?.style === "tab" ? [t("status.lidHandleTab")] : result.handle?.style === "notch" ? [t(slide ? "status.lidSlideGrip" : "status.lidHandleNotch")] : []),
+      ...(tether ? [t("status.lidTether", { length: tether.strap.toLocaleString(numberLocale()) })] : []),
+      ...(flipTop ? [t("status.lidFlipTop", { opening: flipTop.opening.toLocaleString(numberLocale()) })] : []),
     ];
     const withExtras = (message: string) => [message, ...extras].join(" ");
     const handle = result.handle?.style ?? "none";
     // The click bumps' dimples and the finger notch are cut into the body as the magnets' pockets are.
     const bodyCuts = [...(result.clickBumps ? [result.clickBumps.dimples] : []), ...(result.handle?.notch ? [result.handle.notch] : [])];
-    if (!result.magnets && !hinge && !bodyCuts.length) {
-      commitShapes([...shapesRef.current, lid], lid.id, withExtras(t("status.lidMade", { type })));
-      return { ok: true as const, id: lid.id, type: options.type, handle };
+    const millimetres = (value: number) => (Math.round(value * 10) / 10).toLocaleString(numberLocale());
+    const screwAnswer = screw ? {
+      pitch: screw.pitch, turns: Math.round(screw.turns * 1000) / 1000, depth: Math.round(screw.depth * 1000) / 1000, diameter: Math.round(screw.diameter * 1000) / 1000, rimRounding: Math.round(screw.rimRounding * 100) / 100,
+      // A screw-in lid's diameter is its plug's, and the plug may be hollow.
+      ...(screw.inside ? { inside: true, hollow: screw.hollow } : {}),
+      ...(screw.standard === "own" ? {} : (() => {
+        const standard = lidStandardThread(screw.standard);
+        // The cap's thread across its grooves and its ridges, and whether the body got the neck's thread.
+        return {
+          standard: screw.standard, capMajor: Math.round((standard.major + 2 * options.gap) * 1000) / 1000, capMinor: Math.round((standard.clear + 2 * options.gap) * 1000) / 1000,
+          bodyThread: !screw.capOnly, ...(screw.capOnly?.reason === "size" ? { bodyDiameter: screw.capOnly.diameter } : screw.capOnly ? { bodyRound: false } : {}),
+        };
+      })()),
+    } : null;
+    if (!result.magnets && !hinge && !bodyCuts.length && !screwThread && !bayonet && !slide) {
+      const standardName = screw && screw.standard !== "own" ? lidStandardThread(screw.standard).name : "";
+      const message = screw?.capOnly
+        ? screw.capOnly.reason === "size"
+          ? t("status.lidMadeScrewCapOnly", { standard: standardName, diameter: millimetres(screw.diameter), measured: millimetres(screw.capOnly.diameter), neck: lidStandardThread(screw.standard as Exclude<LidThreadStandard, "own">).minor.toLocaleString(numberLocale()) })
+          : t("status.lidMadeScrewCapOnlyNotRound", { standard: standardName, diameter: millimetres(screw.diameter) })
+        : withExtras(t("status.lidMade", { type }));
+      commitShapes([...shapesRef.current, lid], lid.id, message);
+      return { ok: true as const, id: lid.id, type: options.type, handle, ...(screwAnswer ? { screw: screwAnswer } : {}) };
     }
     const posts = result.magnets?.posts ?? [];
-    // A flush hinge's slots and a pivot lid's pin holes are cut into the body as the magnets' pockets are.
-    const pockets = [...(result.magnets?.pockets ?? []), ...(hinge?.cuts ? [hinge.cuts] : []), ...bodyCuts];
-    // The body's knuckles are grouped with it as the magnets' posts are.
-    const grouped = await groupedWithMagnets(targets, { posts: [...posts, ...(hinge ? [hinge.knuckles] : [])], pockets }, (shapes) => buildGroupedShapeOffThread(shapes, workspaceSettingsRef.current.booleanTriangleLimit, geometryAbortRef.current?.signal));
+    // A flush hinge's slots, a pivot lid's pin holes and a slide-in lid's grooves are cut into the body as the magnets'
+    // pockets are.
+    const pockets = [...(result.magnets?.pockets ?? []), ...(hinge?.cuts ? [hinge.cuts] : []), ...(slide ? [slide.cuts] : []), ...bodyCuts];
+    // The body's knuckles, a screw lid's thread (a screw-in lid's in its opening), a bayonet's lugs and a tether's bead are grouped
+    // with it as the magnets' posts are.
+    const grouped = await groupedWithMagnets(targets, { posts: [...posts, ...(hinge ? [hinge.knuckles] : []), ...(screwThread ? [screwThread] : []), ...(bayonet ? [bayonet.lugs] : []), ...(tether ? [tether.bead] : [])], pockets }, (shapes) => buildGroupedShapeOffThread(shapes, workspaceSettingsRef.current.booleanTriangleLimit, geometryAbortRef.current?.signal));
     if (changed()) return fail(t("lid.error.changed"));
-    if (!grouped.group) return fail(grouped.failureNotice || t(hinge ? "lid.error.hingeKernel" : result.magnets ? "lid.error.magnetsKernel" : "lid.error.cutsKernel"));
+    if (!grouped.group) return fail(grouped.failureNotice || t(screw ? "lid.error.screwKernel" : bayonet ? "lid.error.bayonetKernel" : slide ? "lid.error.slideKernel" : hinge ? "lid.error.hingeKernel" : result.magnets ? "lid.error.magnetsKernel" : "lid.error.cutsKernel"));
     const body = canonicalizeShape({ ...grouped.group, groupOperation: "group", name: targets.find((shape) => !shape.hole)?.name ?? grouped.group.name });
     const consumed = new Set(targets.map((shape) => shape.id));
     const remaining = shapesRef.current.filter((shape) => !consumed.has(shape.id));
     const pin = options.hingePin.toLocaleString(numberLocale());
     const magnetCount = result.magnets?.pockets.length ?? 0;
-    const message = hinge
+    // A turn set by hand that does not fit round the body is held to what fits (bayonetPlan): said after the rest.
+    const turnFitted = bayonet && options.bayonetTurn > 0 && bayonet.turn !== options.bayonetTurn ? options.bayonetTurn : null;
+    // Under a rim rounded or chamfered, the thread or the lugs sit below the rounding and the cap reaches over it (#1426).
+    const rimRounding = screw?.rimRounding ?? bayonet?.rimRounding ?? 0;
+    const roundedRim = rimRounding > 0 ? ` ${t("status.lidRimRounded", { depth: millimetres(rimRounding) })}` : "";
+    const message = screw
+      ? screw.inside
+        ? t("status.lidMadeScrewIn", { pitch: millimetres(screw.pitch), height: millimetres(screw.pitch * screw.turns), diameter: millimetres(screw.diameter) }) + roundedRim
+        : screw.standard === "own"
+          ? t("status.lidMadeScrew", { pitch: millimetres(screw.pitch), height: millimetres(screw.pitch * screw.turns), diameter: millimetres(screw.diameter) }) + roundedRim
+          : t("status.lidMadeScrewStandard", { standard: lidStandardThread(screw.standard).name, pitch: millimetres(screw.pitch), diameter: millimetres(screw.diameter) }) + roundedRim
+      : bayonet
+      ? [
+        t("status.lidMadeBayonet", { count: bayonet.count, height: millimetres(bayonet.height), diameter: millimetres(bayonet.diameter), turn: millimetres(bayonet.turn) }),
+        ...(turnFitted !== null ? [t("status.lidBayonetTurnFitted", { asked: millimetres(turnFitted), turn: millimetres(bayonet.turn) })] : []),
+      ].join(" ") + roundedRim
+      : slide
+      ? slide.frame > 0
+        ? t("status.lidMadeSlideFrame", { depth: millimetres(slide.depth), frame: millimetres(slide.frame) })
+        : t("status.lidMadeSlide", { depth: millimetres(slide.depth) })
+      : hinge
       ? hinge.style === "pivot"
         ? t("status.lidMadePivot", { pin })
-        : t(magnetCount ? "status.lidMadeHingeMagnets" : hinge.style === "flush" ? "status.lidMadeHingeFlush" : "status.lidMadeHinge", { type, count: hinge.count, pin, magnets: magnetCount })
+        : hinge.pinLength !== null
+          // With end plugs the pin is shorter than the hinge, and with end knuckles in rounded corners shorter than its
+          // hole: how long it is, for a piece of filament cut to fit.
+          ? t(hinge.plugs ? "status.lidMadeHingeFlushPlugs" : "status.lidMadeHingeFlushCorners", { type, count: hinge.count, pin, length: (Math.round(hinge.pinLength * 10) / 10).toLocaleString(numberLocale()) })
+          : t(magnetCount ? "status.lidMadeHingeMagnets" : hinge.style === "flush" ? "status.lidMadeHingeFlush" : "status.lidMadeHinge", { type, count: hinge.count, pin, magnets: magnetCount })
       : magnetCount
         ? t(posts.length ? "status.lidMadeMagnetsPosts" : "status.lidMadeMagnets", { type, count: magnetCount })
         : t("status.lidMade", { type });
-    commitShapes([...remaining, body, lid, ...(hinge?.pin ? [hinge.pin] : [])], lid.id, withClosedHolesNote(withExtras(message), grouped.closedHoles));
+    // A pin printed apart, end plugs and a tether are bodies of their own beside the lid.
+    commitShapes([...remaining, body, lid, ...(hinge?.pin ? [hinge.pin] : []), ...(hinge?.plugs ? [hinge.plugs] : []), ...(tether ? [tether.part] : [])], lid.id, withClosedHolesNote(withExtras(message), grouped.closedHoles));
     return {
-      ok: true as const, id: lid.id, type: options.type, bodyId: body.id, magnets: magnetCount, posts: posts.length > 0, clickBumps: result.clickBumps?.count ?? 0, handle,
-      ...(hinge ? { hinge: { knuckles: hinge.style === "pivot" ? 0 : hinge.count, pins: hinge.style === "pivot" ? 2 : 1, pinDiameter: options.hingePin, side: options.hingeSide, style: hinge.style, pinId: hinge.pin?.id ?? null } } : {}),
+      ok: true as const, id: lid.id, type: options.type, bodyId: body.id, magnets: magnetCount, posts: posts.length > 0, clickBumps: result.clickBumps?.count ?? slide?.bumps ?? 0, handle,
+      ...(hinge ? { hinge: {
+        knuckles: hinge.style === "pivot" ? 0 : hinge.count, pins: hinge.style === "pivot" ? 2 : 1, pinDiameter: options.hingePin, side: options.hingeSide, style: hinge.style, pinId: hinge.pin?.id ?? null,
+        plugsId: hinge.plugs?.id ?? null, pinLength: hinge.pinLength,
+      } } : {}),
+      ...(screwAnswer ? { screw: screwAnswer } : {}),
+      ...(bayonet ? { bayonet: {
+        lugs: bayonet.count, turn: bayonet.turn, ...(turnFitted !== null ? { turnAsked: turnFitted } : {}), diameter: Math.round(bayonet.diameter * 1000) / 1000, lugHeight: bayonet.height, lugWidth: Math.round(bayonet.width * 1000) / 1000, depth: options.bayonetDepth, rimRounding: Math.round(bayonet.rimRounding * 100) / 100,
+      } } : {}),
+      ...(tether ? { tether: { partId: tether.part.id, strap: tether.strap, neckRing: Math.round(tether.neckRing * 1000) / 1000, capRing: Math.round(tether.capRing * 1000) / 1000 } } : {}),
+      ...(flipTop ? { flipTop: {
+        opening: flipTop.opening, flapDiameter: Math.round(flipTop.flap * 1000) / 1000, hingeWidth: Math.round(flipTop.hingeWidth * 1000) / 1000, hingeLength: flipTop.hingeLength, hingeThickness: flipTop.hingeThickness,
+      } } : {}),
+      ...(slide ? { slide: { side: slide.side, grooveDepth: Math.round(slide.depth * 1000) / 1000, wall: Math.round(slide.wall * 1000) / 1000, ...(slide.frame > 0 ? { frame: slide.frame } : {}) } } : {}),
     };
   }, [commitShapes, exactLid, selectedShapes]);
 
@@ -8665,12 +8843,17 @@ export function LayerlingEditor({
       setLidTool(null);
       return;
     }
-    const { type, thickness, gap, depth, wall, magnets, magnetDiameter, magnetHeight, magnetGap, hinge, hingePin, hingeGap, hingePinPlay, hingeKnuckles, hingePrintPin, hingeSide, hingeTeardrop, hingeStyle, clickBumps, clickBumpHeight, handle } = lidTool;
+    const { type, thickness, gap, depth, wall, magnets, magnetDiameter, magnetHeight, magnetGap, hinge, hingePin, hingeGap, hingePinPlay, hingeKnuckles, hingePrintPin, hingeSide, hingeTeardrop, hingeStyle, hingeEndPlugs, clickBumps, clickBumpHeight, handle, threadPitch, threadTurns, threadStandard, bayonetLugs, bayonetDepth, bayonetAxialGap, bayonetDetent, bayonetTurn, tether, flipTop, flipTopOpening, topEdge, topEdgeSize, slideSide, slideFrame } = lidTool;
     setLidTool((current) => current ? { ...current, busy: true, error: null } : current);
-    // Click bumps and a handle the panel shows switched off (a flat lid, a pivot lid) are not asked for.
+    // Click bumps, a handle and end plugs the panel does not show (a flat lid, a pivot lid, a hinge not flush)
+    // are not asked for, nor magnets and a hinge with a screw lid or a bayonet lid, nor a tether without one, nor a flip-top with another lid; nor magnets and a hinge with a slide-in lid.
+    const extras = lidTakesExtras(lidTool);
     void makeLid({
-      type, thickness, gap, depth, wall, magnets, magnetDiameter, magnetHeight, magnetGap, hinge, hingePin, hingeGap, hingePinPlay, hingeKnuckles, hingePrintPin, hingeSide, hingeTeardrop, hingeStyle,
-      clickBumps: clickBumps && lidClickBumpsFit(lidTool), clickBumpHeight, handle: lidHandleFits(lidTool) ? handle : "none",
+      type, thickness, gap, depth, wall, magnets: magnets && lidTakesMagnets(lidTool), magnetDiameter, magnetHeight, magnetGap, hinge: hinge && LID_HINGE_TYPES.includes(type), hingePin, hingeGap, hingePinPlay, hingeKnuckles, hingePrintPin, hingeSide, hingeTeardrop, hingeStyle,
+      hingeEndPlugs: hingeEndPlugs && hingeStyle === "flush",
+      clickBumps: clickBumps && lidClickBumpsFit(lidTool), clickBumpHeight, handle: lidHandleFits(lidTool) ? handle : "none", threadPitch, threadTurns, threadStandard,
+      bayonetLugs, bayonetDepth, bayonetAxialGap, bayonetDetent, bayonetTurn, tether: tether && lidTetherFits(lidTool), flipTop: flipTop && lidFlipTopFits(lidTool), flipTopOpening,
+      topEdge: lidTopEdgeFits(lidTool) ? topEdge : "square", topEdgeSize, slideSide, slideFrame,
     }, targets).then((result) => {
       if (result.ok) setLidTool(null);
       else setLidTool((current) => current ? { ...current, busy: false, error: result.message } : current);
@@ -8899,6 +9082,34 @@ export function LayerlingEditor({
     return true;
   }, [appendHistoryEntry, syncProjectShapes]);
 
+  /**
+   * A hollowed body that has been resized, hollowed again from its state before the hollowing, brought to its new size,
+   * so its walls stay as thick as they were; fillets and chamfers laid after the hollowing go on again. `watched` is the
+   * body in the scene the result replaces: the stale body itself, or the body before "Fit the body to the neck" resized
+   * it (issue #1482). Null when its state before cannot be brought to that size.
+   */
+  const rehollowedShape = useCallback(async (stale: WorkplaneShape, watched: WorkplaneShape = stale): Promise<WorkplaneShape | null> => {
+    const entry = shellNeedingRebuild(stale);
+    if (!entry) return stale;
+    const { amount, openings, shellEdges } = entry.feature;
+    // Measured from where the last fillet after the hollowing left the body, if there is one (forum, 621472).
+    const reference = shellRebuildReference(stale, entry);
+    const stretch = hollowStretchSincePicture(stale, reference);
+    const width = entry.before.width * stretch.x;
+    const depth = entry.before.depth * stretch.z;
+    // A cylinder stays round; stretched unevenly it becomes the ellipse it now is.
+    const source = entry.before.kind === "cylinder" && Math.abs(width - depth) > 0.005
+      ? { ...reference, before: { ...entry.before, kind: "ellipse" as const } }
+      : reference;
+    const before = restoreShapeBeforeEdgeTreatment(stale, source);
+    if (Math.abs(shapeWidth(before) - width) > 0.05 || Math.abs(shapeDepth(before) - depth) > 0.05) return null;
+    // Fillets and chamfers laid after the hollowing go on again, on the same edges of the fresh walls.
+    const after = edgeTreatmentsAfterShell(stale) ?? [];
+    let rebuilt = await shellShape(before, amount, openings ?? "none", shellEdges ?? "round", watched);
+    for (const later of after) rebuilt = await relaidEdgeTreatment(rebuilt, later);
+    return rebuilt;
+  }, [relaidEdgeTreatment, shellShape]);
+
   const shellRebuildBusyRef = useRef(false);
   const shellRebuildFailedRef = useRef(new Set<string>());
   const [shellRebuildRound, setShellRebuildRound] = useState(0);
@@ -8910,33 +9121,15 @@ export function LayerlingEditor({
       const entry = shellNeedingRebuild(stale);
       if (!entry) return;
       const fingerprint = projectShapesFingerprint([stale]);
-      const { amount, openings, shellEdges } = entry.feature;
-      // Measured from where the last fillet after the hollowing left the body, if there is one (forum, 621472).
-      const reference = shellRebuildReference(stale, entry);
-      const stretch = hollowStretchSincePicture(stale, reference);
-      const width = entry.before.width * stretch.x;
-      const depth = entry.before.depth * stretch.z;
-      // A cylinder stays round; stretched unevenly it becomes the ellipse it now is.
-      const source = entry.before.kind === "cylinder" && Math.abs(width - depth) > 0.005
-        ? { ...reference, before: { ...entry.before, kind: "ellipse" as const } }
-        : reference;
-      const before = restoreShapeBeforeEdgeTreatment(stale, source);
-      if (Math.abs(shapeWidth(before) - width) > 0.05 || Math.abs(shapeDepth(before) - depth) > 0.05) {
-        shellRebuildFailedRef.current.add(fingerprint);
-        setNotice(t("status.shellRebuildFailed"), true);
-        setShellRebuildRound((round) => round + 1);
-        return;
-      }
+      const { amount } = entry.feature;
       shellRebuildBusyRef.current = true;
-      // Fillets and chamfers laid after the hollowing go on again, on the same edges of the fresh walls.
-      const after = edgeTreatmentsAfterShell(stale) ?? [];
-      void shellShape(before, amount, openings ?? "none", shellEdges ?? "round", stale)
-        .then(async (hollowed) => {
-          let rebuilt = hollowed;
-          for (const later of after) rebuilt = await relaidEdgeTreatment(rebuilt, later);
-          return rebuilt;
-        })
+      void rehollowedShape(stale)
         .then((rebuilt) => {
+          if (!rebuilt) {
+            shellRebuildFailedRef.current.add(fingerprint);
+            setNotice(t("status.shellRebuildFailed"), true);
+            return;
+          }
           if (replaceRebuiltShape(stale.id, fingerprint, rebuilt)) setNotice(t("status.shellRebuilt", { size: Number(amount.toFixed(2)) }));
         })
         .catch((error: unknown) => {
@@ -8952,7 +9145,75 @@ export function LayerlingEditor({
         });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [deleteFaceTool, edgeModifier, projectInteractionActive, relaidEdgeTreatment, replaceRebuiltShape, shapes, shellRebuildRound, shellShape, shellTool]);
+  }, [deleteFaceTool, edgeModifier, projectInteractionActive, rehollowedShape, replaceRebuiltShape, shapes, shellRebuildRound, shellTool]);
+
+  /**
+   * "Fit the body to the neck" (issue #1482): the body's top made as wide as a standard's neck under the thread
+   * (`lidNeckFitPatch`), its height kept, so that Make lid gives it the neck's thread. A hollowed body is hollowed again
+   * at its new size before it is put back, its walls as thick as they were, so the resize is one step to undo and the
+   * lid is never made for walls stretched in the meantime. The lid panel's button and the MCP action's `fitNeck` use it.
+   */
+  const fitBodyToNeck = useCallback(async (target: WorkplaneShape, standard: Exclude<LidThreadStandard, "own">) => {
+    const fail = (message: string) => {
+      setNotice(message);
+      return { ok: false as const, message };
+    };
+    const patch = lidNeckFitPatch(target, standard);
+    if (!patch) return fail(t("lid.error.neckFitShape"));
+    if (bodyLocked(target)) return fail(t("status.objectLocked"));
+    const sourceFingerprint = projectShapesFingerprint(shapesRef.current);
+    const sourceProjectId = projectInfoRef.current.projectId;
+    const changed = () => projectInfoRef.current.projectId !== sourceProjectId || projectShapesFingerprint(shapesRef.current) !== sourceFingerprint;
+    let fitted: WorkplaneShape | null = shapeWithInspectorPatch(target, patch);
+    if (shellNeedingRebuild(fitted)) {
+      try {
+        fitted = await rehollowedShape(fitted, target);
+      } catch (error) {
+        const message = error instanceof Error ? localizedError(error.message) : String(error);
+        return fail(/changed while/.test(message) ? t("lid.error.changed") : t("status.shellRebuildFailed"));
+      }
+      if (!fitted) return fail(t("status.shellRebuildFailed"));
+    }
+    if (changed()) return fail(t("lid.error.changed"));
+    const diameter = patch.width;
+    commitShapes(shapesRef.current.map((shape) => shape.id === target.id ? canonicalizeShape(fitted!) : shape), selectedIdsRef.current, t("status.lidNeckFitted", {
+      name: displayShapeName(target), diameter: diameter.toLocaleString(numberLocale()), standard: lidStandardThread(standard).name,
+    }));
+    return { ok: true as const, diameter };
+  }, [commitShapes, rehollowedShape]);
+
+  /**
+   * The lid panel's line on the body's top, for a standard's thread (issue #1482): measured off the page as Make lid
+   * measures it, again whenever the bodies change, and not while a resized hollow body waits to be hollowed again.
+   * `top` is undefined while it is measured, null for a top that is not round; no measurement at all (a body that is
+   * not closed) leaves the line out.
+   */
+  const [lidNeckTop, setLidNeckTop] = useState<{ key: string; top: { outer: number; inner: number } | null | undefined } | null>(null);
+  const [lidNeckFitting, setLidNeckFitting] = useState(false);
+  const lidNeckTargets = useMemo(() => lidTool ? shapes.filter((shape) => lidTool.targetIds.includes(shape.id)) : [], [lidTool, shapes]);
+  const lidNeckAsked = lidTool?.type === "screw" && lidTool.threadStandard !== "own";
+  const lidNeckKey = useMemo(() => lidNeckAsked && lidNeckTargets.length ? projectShapesFingerprint(lidNeckTargets) : null, [lidNeckAsked, lidNeckTargets]);
+  const lidNeckWaits = useMemo(() => lidNeckTargets.some((shape) => shellNeedingRebuild(shape)), [lidNeckTargets]);
+  useEffect(() => {
+    if (!lidNeckKey) {
+      setLidNeckTop(null);
+      return;
+    }
+    setLidNeckTop({ key: lidNeckKey, top: undefined });
+    if (lidNeckWaits) return;
+    const abort = new AbortController();
+    void lidTopOffThread(lidNeckTargets, abort.signal).then((measured) => {
+      if (!abort.signal.aborted) setLidNeckTop(measured ? { key: lidNeckKey, top: measured.round } : null);
+    });
+    return () => abort.abort();
+    // The bodies are in the key: measured again when they change, not when anything else does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lidNeckKey, lidNeckWaits]);
+  const fitLidNeck = useCallback(() => {
+    if (!lidTool || lidTool.threadStandard === "own" || lidNeckTargets.length !== 1 || lidNeckFitting) return;
+    setLidNeckFitting(true);
+    void fitBodyToNeck(lidNeckTargets[0], lidTool.threadStandard).finally(() => setLidNeckFitting(false));
+  }, [fitBodyToNeck, lidNeckFitting, lidNeckTargets, lidTool]);
 
   /*
    * Ein Skizzenkoerper, dessen Groesse geaendert wurde, wird aus seiner Skizze
@@ -9186,6 +9447,29 @@ export function LayerlingEditor({
   }, [commitShapes, selectedIds, shapes]);
   showHiddenRef.current = showHidden;
 
+  // Hide others (Discussion #1472): everything but the selection goes out of sight in one undo step, so Ctrl+Z
+  // or Show all hidden brings it back. Returns the ids it hid, or why it hid nothing, for MCP.
+  const hideOthers = useCallback((keepIds?: string[]): { hiddenIds: string[]; problem: "noSelection" | "nothingElse" | null } => {
+    const keep = new Set(keepIds ?? selectedIdsRef.current);
+    const current = shapesRef.current;
+    if (keep.size === 0) {
+      setNotice(t("status.selectShapeFirst"));
+      return { hiddenIds: [], problem: "noSelection" };
+    }
+    const hiddenIds = current.filter((shape) => !shape.hidden && !keep.has(shape.id)).map((shape) => shape.id);
+    if (hiddenIds.length === 0) {
+      setNotice(t("status.nothingElseToHide"));
+      return { hiddenIds, problem: "nothingElse" };
+    }
+    const hide = new Set(hiddenIds);
+    commitShapes(
+      current.map((shape) => (hide.has(shape.id) ? { ...shape, hidden: true } : shape)),
+      current.filter((shape) => keep.has(shape.id)).map((shape) => shape.id),
+      hiddenIds.length === 1 ? t("status.othersHiddenOne") : t("status.othersHiddenMany", { count: hiddenIds.length }),
+    );
+    return { hiddenIds, problem: null };
+  }, [commitShapes]);
+
   const toggleLocked = useCallback(() => {
     if (!hasSelection) {
       setNotice(t("status.selectShapeFirst"));
@@ -9409,7 +9693,7 @@ export function LayerlingEditor({
     [refuseLockedSelection, commitShapes, hasSelection, placementWorkplane, selectedIds],
   );
 
-  const dropSelectedToWorkplane = useCallback((modifiers?: { shift?: boolean }) => {
+  const dropSelectedToWorkplane = useCallback((modifiers?: { shift?: boolean; together?: boolean }) => {
     const top = modifiers?.shift === true;
     if (!hasSelection) {
       setNotice(t("status.selectShapeFirst"));
@@ -9417,14 +9701,16 @@ export function LayerlingEditor({
     }
     if (refuseLockedSelection()) return;
     const selected = new Set(selectedIds);
+    const vertices = (shape: WorkplaneShape) => meshForShape(shape).vertices.map(([x, y, z]) => ({ x, y, z }));
+    // Alt+D drops the selection as one piece, so the parts keep their heights to each other, as grouping, dropping and
+    // ungrouping did before (Discussion #1509); D drops every part on its own.
+    const shared = modifiers?.together === true
+      ? translationToWorkplane(placementWorkplane, shapes.filter((shape) => selected.has(shape.id) && !shape.locked).flatMap(vertices), top)
+      : null;
     commitShapes(
       shapes.map((shape) => {
         if (!selected.has(shape.id) || shape.locked) return shape;
-        const translation = translationToWorkplane(
-          placementWorkplane,
-          meshForShape(shape).vertices.map(([x, y, z]) => ({ x, y, z })),
-          top,
-        );
+        const translation = shared ?? translationToWorkplane(placementWorkplane, vertices(shape), top);
         return {
           ...shape,
           x: cleanNearZero(shape.x + translation.x),
@@ -9491,7 +9777,7 @@ export function LayerlingEditor({
     stopCruise();
     setPivotPickMode(false);
     setLayFlatPickMode(false);
-    setMateTool({ sourceId: source.id, step: "source", source: null, target: null, mode: "against", gap: 0 });
+    setMateTool({ sourceId: source.id, step: "source", source: null, target: null, sourcePoint: null, targetPoint: null, mode: "against", gap: 0, axes: ALL_MATE_AXES, pair: 1, pivot: null, axisPoint: null });
     setNotice(t("status.mateStart"));
   }, [refuseLockedSelection, closeSplit, mateTool, selectedShapes, stopCruise]);
 
@@ -9522,7 +9808,56 @@ export function LayerlingEditor({
     setNotice(t("status.mateReady"));
   }, [mateTool]);
 
+  const pickMatePoint = useCallback((pick: PointPick | null) => {
+    if (!mateTool || mateTool.mode !== "point" || mateTool.step === "ready") return;
+    if (mateTool.step === "source") {
+      if (!pick || (pick.shapeId !== null && pick.shapeId !== mateTool.sourceId)) {
+        setNotice(t("status.matePointMissedSource"));
+        return;
+      }
+      setMateTool({ ...mateTool, step: "target", sourcePoint: pick });
+      setNotice(t(mateTool.pair > 1 ? "status.matePointTurnTarget" : "status.matePointTarget"));
+      return;
+    }
+    if (!pick || pick.shapeId === mateTool.sourceId) {
+      setNotice(t("status.matePointMissedTarget"));
+      return;
+    }
+    setMateTool({ ...mateTool, step: "ready", targetPoint: pick });
+    setNotice(t("status.matePointReady"));
+  }, [mateTool]);
+
   const applyMateFaces = useCallback(() => {
+    if (mateTool?.mode === "point") {
+      const { sourceId, sourcePoint, targetPoint, axes, pair, pivot, axisPoint } = mateTool;
+      if (!sourcePoint || !targetPoint) return;
+      const nextPair = { step: "source" as const, sourcePoint: null, targetPoint: null };
+      if (pair === 1) {
+        if (!(axes.x || axes.y || axes.z)) return;
+        // The tool stays open: a second pair may turn the body about the point that just landed.
+        const landed = new THREE.Vector3(sourcePoint.point.x, sourcePoint.point.y, sourcePoint.point.z).add(pointMotion(sourcePoint.point, targetPoint.point, axes));
+        commitShapes(pointMatedShapes(shapes, sourceId, sourcePoint.point, targetPoint.point, axes), [sourceId], t("status.matedPoint"));
+        setMateTool({ ...mateTool, ...nextPair, pair: 2, pivot: { x: landed.x, y: landed.y, z: landed.z } });
+        return;
+      }
+      if (!pivot) return;
+      const rotation = pair === 2
+        ? pointTurnAboutPivot(pivot, sourcePoint.point, targetPoint.point)
+        : axisPoint ? pointTurnAboutAxis(pivot, axisPoint, sourcePoint.point, targetPoint.point) : null;
+      if (!rotation) {
+        setMateTool({ ...mateTool, ...nextPair });
+        setNotice(t(pair === 2 ? "status.matePointOnPivot" : "status.matePointOnAxis"));
+        return;
+      }
+      commitShapes(pointTurnedShapes(shapes, sourceId, rotation, pivot), [sourceId], t("status.matePointTurned"));
+      if (pair === 2) {
+        // The third pair turns about the line the first two fixed: from the pivot through the second target.
+        setMateTool({ ...mateTool, ...nextPair, pair: 3, axisPoint: targetPoint.point });
+        return;
+      }
+      setMateTool(null);
+      return;
+    }
     if (!mateTool?.source || !mateTool.target) return;
     const { source, target, mode, gap } = mateTool;
     setMateTool(null);
@@ -9691,6 +10026,136 @@ export function LayerlingEditor({
     if (holePatternTool?.step !== "pick") holePatternPickAbortRef.current?.abort();
   }, [holePatternTool]);
 
+  // "Paint": colours on parts of the selected body's surface, for printing in several colours (paint.ts).
+  const togglePaint = useCallback(() => {
+    if (paintTool) {
+      setPaintTool(null);
+      setNotice(t("status.paintClosed"));
+      return;
+    }
+    // Paint is the body's look, as its colour: a locked body refuses it, one of locked shape takes it.
+    if (refuseLockedSelection()) return;
+    const source = selectedShapes.length === 1 ? selectedShapes[0] : null;
+    if (!source) {
+      setNotice(t("status.paintSelectOne"));
+      return;
+    }
+    if (!canPaintShape(source)) {
+      setNotice(t("status.paintNeedsSolid"));
+      return;
+    }
+    if (edgeModifier || shellTool || deleteFaceTool || splitSession || simplifyToolId) {
+      setNotice(t("status.paintOtherTool"));
+      return;
+    }
+    stopCruise();
+    holePatternPickRunRef.current += 1;
+    setHolePatternTool(null);
+    faceToolPickRunRef.current += 1;
+    setFaceTool(null);
+    supportRibPickRunRef.current += 1;
+    setSupportRibTool(null);
+    setAlignMode(false);
+    setMirrorMode(false);
+    setPivotPickMode(false);
+    setLayFlatPickMode(false);
+    setMateTool(null);
+    setArrayTool(null);
+    setScalePercentTool(null);
+    // The colour last painted with, unless it is hardly the body's own: then one that stands out against it.
+    const last = paintSettingsRef.current;
+    const color = paintStartColor(source.color, designPaintColors(shapesRef.current), paintColorChosenRef.current ? last.color : null);
+    setPaintTool({ sourceId: source.id, settings: normalizePaintTool({ ...last, color }) });
+    setNotice(t("status.paintStart"));
+    // The kernel cuts circles and lassos in: asked for now, it is there by the first stroke.
+    void getManifoldRuntime().catch(() => null);
+  }, [deleteFaceTool, edgeModifier, paintTool, refuseLockedSelection, selectedShapes, shellTool, simplifyToolId, splitSession, stopCruise]);
+
+  const changePaintSettings = useCallback((patch: Partial<PaintToolSettings>) => {
+    setPaintTool((current) => {
+      if (!current) return current;
+      const settings = normalizePaintTool({ ...current.settings, ...patch });
+      paintSettingsRef.current = settings;
+      if (patch.color) paintColorChosenRef.current = true;
+      return { ...current, settings };
+    });
+  }, []);
+
+  /** A stroke onto the painted body, as a step of the history; one that finds nothing on the body is not kept. */
+  const addPaintStroke = useCallback(async (stroke: PaintStroke | null) => {
+    const tool = paintTool;
+    if (!tool || !stroke) return;
+    // A circle or a lasso is cut in by the kernel; without it, it would colour whole faces, and a small one find none.
+    if (stroke.mode !== "fill" && !loadedManifoldRuntime()) await getManifoldRuntime().catch(() => null);
+    const source = shapesRef.current.find((shape) => shape.id === tool.sourceId);
+    if (!source) return;
+    if (source.locked) {
+      refuseLockedSelection();
+      return;
+    }
+    const strokes = source.paint ?? [];
+    if (strokes.length >= PAINT_MAX_STROKES) {
+      setNotice(t("status.paintTooMany", { count: PAINT_MAX_STROKES }), true);
+      return;
+    }
+    const next = { ...source, paint: [...strokes, stroke] };
+    // Laid now, the painted mesh is ready for the view; a stroke that found nothing would only sit in the file.
+    if ((paintedBodyMesh(next)?.skipped ?? 0) > (paintedBodyMesh(source)?.skipped ?? 0)) {
+      setNotice(t("status.paintNothing"));
+      return;
+    }
+    commitShapes(shapesRef.current.map((shape) => (shape.id === source.id ? next : shape)), source.id, t(stroke.color ? "status.paintAdded" : "status.paintErased"));
+  }, [commitShapes, paintTool, refuseLockedSelection]);
+
+  const paintAtPick = useCallback((pick: LayFlatPick | null) => {
+    const tool = paintTool;
+    const source = tool ? shapesRef.current.find((shape) => shape.id === tool.sourceId) : null;
+    if (!tool || !source) return;
+    if (!pick || pick.shapeId !== source.id) {
+      setNotice(t("status.paintMissed"));
+      return;
+    }
+    void addPaintStroke(paintStrokeAt(source, pick.point, pick.normal, tool.settings));
+  }, [addPaintStroke, paintTool]);
+
+  const paintLasso = useCallback((view: PaintLassoView, outline: Array<[number, number]>) => {
+    const tool = paintTool;
+    const source = tool ? shapesRef.current.find((shape) => shape.id === tool.sourceId) : null;
+    if (!tool || !source) return;
+    void addPaintStroke(paintLassoStroke(source, view, outline, tool.settings));
+  }, [addPaintStroke, paintTool]);
+
+  const clearPaint = useCallback(() => {
+    const source = paintTool ? shapesRef.current.find((shape) => shape.id === paintTool.sourceId) : null;
+    if (!source?.paint?.length) return;
+    if (source.locked) {
+      refuseLockedSelection();
+      return;
+    }
+    commitShapes(shapesRef.current.map((shape) => (shape.id === source.id ? { ...shape, paint: undefined } : shape)), source.id, t("status.paintCleared"));
+  }, [commitShapes, paintTool, refuseLockedSelection]);
+
+  // The tool belongs to the body it was started for, and gives way to the tools that pick faces or open panels of their own.
+  useEffect(() => {
+    if (!paintTool) return;
+    const source = shapes.find((shape) => shape.id === paintTool.sourceId);
+    if (
+      !source || !canPaintShape(source)
+      || selectedIds.length !== 1 || selectedIds[0] !== paintTool.sourceId
+      || mateTool || layFlatPickMode || pivotPickMode || arrayTool || scalePercentTool || holePatternTool || faceTool || supportRibTool
+      || shellTool || deleteFaceTool || edgeModifier || splitSession || simplifyToolId
+    ) {
+      setPaintTool(null);
+    }
+  }, [arrayTool, deleteFaceTool, edgeModifier, faceTool, holePatternTool, layFlatPickMode, mateTool, paintTool, pivotPickMode, scalePercentTool, selectedIds, shapes, shellTool, simplifyToolId, splitSession, supportRibTool]);
+
+  /** The colours the panel offers: those of the design's bodies and of their paint, the one chosen now included. */
+  const paintPalette = useMemo(() => {
+    if (!paintTool) return [];
+    const colors = designPaintColors(shapes, 20);
+    return colors.includes(paintTool.settings.color) ? colors : [...colors, paintTool.settings.color];
+  }, [paintTool, shapes]);
+
   // "Face" (#404): pick a flat face of the selected body, then push it out or cut a pocket in, with an inset from its edge.
   const toggleFaceTool = useCallback(() => {
     if (faceTool) {
@@ -9856,7 +10321,7 @@ export function LayerlingEditor({
       selectedIds.length !== 1
       || selectedIds[0] !== faceTool.sourceId
       || mateTool || layFlatPickMode || pivotPickMode || arrayTool || scalePercentTool
-      || shellTool || deleteFaceTool || edgeModifier || splitSession || simplifyToolId || holePatternTool
+      || shellTool || deleteFaceTool || edgeModifier || splitSession || simplifyToolId || holePatternTool || supportRibTool
     ) {
       faceToolPickRunRef.current += 1;
       setFaceTool(null);
@@ -9866,6 +10331,312 @@ export function LayerlingEditor({
   useEffect(() => {
     if (faceTool?.step !== "pick") faceToolPickAbortRef.current?.abort();
   }, [faceTool]);
+
+  // "Support rib" (Discussion #1385): pick the lower face of a part standing tilted on one edge; a thin rib stands under
+  // it a gap away, on an oval foot, held to the part by bridges one layer high.
+  const toggleSupportRib = useCallback(() => {
+    if (supportRibTool) {
+      supportRibPickRunRef.current += 1;
+      setSupportRibTool(null);
+      setNotice(t("status.supportRibCancelled"));
+      return;
+    }
+    if (refuseBodyLockedSelection()) return;
+    const source = selectedShapes.length === 1 ? selectedShapes[0] : null;
+    if (!source) {
+      setNotice(t("status.supportRibSelectOne"));
+      return;
+    }
+    if (source.hole || isNonSolidShape(source)) {
+      setNotice(t("status.supportRibNeedsSolid"));
+      return;
+    }
+    if (edgeModifier || shellTool || deleteFaceTool || splitSession || simplifyToolId) {
+      setNotice(t("status.faceToolOtherTool"));
+      return;
+    }
+    stopCruise();
+    holePatternPickRunRef.current += 1;
+    setHolePatternTool(null);
+    faceToolPickRunRef.current += 1;
+    setFaceTool(null);
+    setAlignMode(false);
+    setMirrorMode(false);
+    setPivotPickMode(false);
+    setLayFlatPickMode(false);
+    setMateTool(null);
+    setArrayTool(null);
+    setScalePercentTool(null);
+    supportRibPickRunRef.current += 1;
+    setSupportRibTool({ sourceId: source.id, step: "pick", face: null, settings: readSupportRibSettings(readPrintCheckSettings().nozzle), busy: false });
+    setNotice(t("status.supportRibStart"));
+  }, [deleteFaceTool, edgeModifier, refuseBodyLockedSelection, selectedShapes, shellTool, simplifyToolId, splitSession, stopCruise, supportRibTool]);
+
+  const pickSupportRibFace = useCallback(async (pick: LayFlatPick | null) => {
+    if (!supportRibTool || supportRibTool.step !== "pick") return;
+    const source = shapesRef.current.find((shape) => shape.id === supportRibTool.sourceId);
+    const run = supportRibPickRunRef.current + 1;
+    supportRibPickRunRef.current = run;
+    supportRibPickAbortRef.current?.abort();
+    if (!pick || !source || pick.shapeId !== source.id) {
+      setNotice(t("status.supportRibMissed"));
+      return;
+    }
+    const fingerprint = projectShapesFingerprint([source]);
+    const pickAbort = new AbortController();
+    supportRibPickAbortRef.current = pickAbort;
+    let triangles: ArrayLike<number>;
+    try {
+      triangles = await faceReadForClick(source, fingerprint, pickAbort.signal);
+    } catch (error) {
+      if (supportRibPickRunRef.current === run) setNotice(localizedError(error instanceof Error ? error.message : String(error)), true);
+      return;
+    }
+    const read = readPerforableFace(triangles, pick.point, pick.normal);
+    const latest = shapesRef.current.find((shape) => shape.id === source.id);
+    if (supportRibPickRunRef.current !== run || !latest || projectShapesFingerprint([latest]) !== fingerprint) return;
+    if (!read.ok) {
+      setNotice(t(read.reason === "curved" ? "status.supportRibCurved" : "status.supportRibMissed"));
+      return;
+    }
+    const face = supportRibFace(read.face);
+    if (!face.ok) {
+      setNotice(t(`supportRib.reason.${face.reason}`));
+      return;
+    }
+    setSupportRibTool((current) => current && current.sourceId === source.id && current.step === "pick" ? { ...current, step: "ready", face: face.face, settings: { ...current.settings, height: null } } : current);
+    setNotice(t("status.supportRibReady"));
+  }, [faceReadForClick, supportRibTool]);
+
+  const changeSupportRibSettings = useCallback((patch: Partial<SupportRibSettings>) => {
+    setSupportRibTool((current) => {
+      if (!current) return current;
+      // Another nozzle or other layers: the measures that follow them follow again, unless they were set by hand.
+      const settings = normalizeSupportRib({ ...current.settings, ...patch });
+      writeSupportRibSettings(settings);
+      return { ...current, settings };
+    });
+  }, []);
+
+  // The rib is built with the kernel a moment after the numbers change, as the face tool's body is.
+  useEffect(() => {
+    const run = ++supportRibPreviewRunRef.current;
+    const face = supportRibTool?.face;
+    const source = supportRibTool ? shapesRef.current.find((shape) => shape.id === supportRibTool.sourceId) : null;
+    if (!face || !supportRibTool || !source) {
+      setSupportRibPreview(null);
+      return;
+    }
+    const settings = supportRibTool.settings;
+    const timer = window.setTimeout(() => {
+      void getManifoldRuntime()
+        .then((runtime) => {
+          if (supportRibPreviewRunRef.current !== run) return;
+          const built = buildSupportRib(runtime, face, settings, source);
+          if (!built.ok) {
+            setSupportRibPreview({ shape: null, plan: null, problem: `supportRib.reason.${built.reason}` });
+            return;
+          }
+          setSupportRibPreview({ shape: supportRibShape("support-rib-preview", t("supportRib.name"), source.color, built.positions), plan: built.plan, problem: null });
+        })
+        .catch(() => {
+          if (supportRibPreviewRunRef.current === run) setSupportRibPreview({ shape: null, plan: null, problem: "supportRib.reason.failed" });
+        });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [supportRibTool?.face, supportRibTool?.settings, supportRibTool?.sourceId]);
+
+  const applySupportRib = useCallback(async () => {
+    const tool = supportRibTool;
+    if (!tool?.face || tool.busy) return;
+    const source = shapesRef.current.find((shape) => shape.id === tool.sourceId);
+    if (!source) return;
+    setSupportRibTool({ ...tool, busy: true });
+    const runtime = await getManifoldRuntime();
+    const built = buildSupportRib(runtime, tool.face, tool.settings, source);
+    if (!built.ok) {
+      setSupportRibTool((current) => (current ? { ...current, busy: false } : current));
+      setNotice(t(`supportRib.reason.${built.reason}`));
+      return;
+    }
+    const rib = supportRibShape(createLocalId("support-rib"), t("supportRib.name"), source.color, built.positions, source.id);
+    if (!rib) {
+      setSupportRibTool((current) => (current ? { ...current, busy: false } : current));
+      setNotice(t("supportRib.reason.failed"));
+      return;
+    }
+    const message = t("status.supportRibCreated", { count: built.plan.bridges.length });
+    setSupportRibTool(null);
+    if (tool.settings.bundle) {
+      // Bundled with the part: they move together and reach the slicer side by side, the bridges joining them there.
+      const group = groupedShape([source, rib]);
+      if (group) {
+        const bundle = canonicalizeShape({ ...group, name: source.name, groupOperation: "bundle" });
+        commitShapes([...shapesRef.current.filter((shape) => shape.id !== source.id), bundle], bundle.id, message);
+        return;
+      }
+    }
+    commitShapes([...shapesRef.current, rib], rib.id, message);
+  }, [commitShapes, supportRibTool]);
+
+  // The tool belongs to the body it was started for and gives way to the other tools, as the face tool does.
+  useEffect(() => {
+    if (!supportRibTool) return;
+    if (
+      selectedIds.length !== 1
+      || selectedIds[0] !== supportRibTool.sourceId
+      || mateTool || layFlatPickMode || pivotPickMode || arrayTool || scalePercentTool
+      || shellTool || deleteFaceTool || edgeModifier || splitSession || simplifyToolId || holePatternTool || faceTool
+    ) {
+      supportRibPickRunRef.current += 1;
+      setSupportRibTool(null);
+    }
+  }, [arrayTool, deleteFaceTool, edgeModifier, faceTool, holePatternTool, layFlatPickMode, mateTool, pivotPickMode, scalePercentTool, selectedIds, shellTool, simplifyToolId, splitSession, supportRibTool]);
+
+  useEffect(() => {
+    if (supportRibTool?.step !== "pick") supportRibPickAbortRef.current?.abort();
+  }, [supportRibTool]);
+
+  // "Stencil bridges" (Discussion #1438): a plate with text cut through, seen from above; every part inside a hole - the
+  // middle of an o, the bellies of a B - gets bridges, boxes grouped with the plate. Run on that group again, new
+  // bridges take the place of the ones it made.
+  const toggleStencilBridges = useCallback(() => {
+    if (stencilBridgeTool) {
+      setStencilBridgeTool(null);
+      setNotice(t("status.stencilBridgesCancelled"));
+      return;
+    }
+    if (refuseBodyLockedSelection()) return;
+    if (selectedShapes.length === 0) {
+      setNotice(t("status.stencilBridgesSelect"));
+      return;
+    }
+    if (selectedShapes.some((shape) => isNonSolidShape(shape)) || selectedShapes.every((shape) => shape.hole)) {
+      setNotice(t("status.stencilBridgesNeedsSolid"));
+      return;
+    }
+    if (edgeModifier || shellTool || deleteFaceTool || splitSession || simplifyToolId) {
+      setNotice(t("status.faceToolOtherTool"));
+      return;
+    }
+    stopCruise();
+    holePatternPickRunRef.current += 1;
+    setHolePatternTool(null);
+    faceToolPickRunRef.current += 1;
+    setFaceTool(null);
+    supportRibPickRunRef.current += 1;
+    setSupportRibTool(null);
+    setAlignMode(false);
+    setMirrorMode(false);
+    setPivotPickMode(false);
+    setLayFlatPickMode(false);
+    setMateTool(null);
+    setArrayTool(null);
+    setScalePercentTool(null);
+    setStencilBridgeTool({ sourceIds: selectedShapes.map((shape) => shape.id), settings: readStencilBridgeToolSettings(), busy: false });
+    setNotice(t("status.stencilBridgesStart"));
+  }, [deleteFaceTool, edgeModifier, refuseBodyLockedSelection, selectedShapes, shellTool, simplifyToolId, splitSession, stencilBridgeTool, stopCruise]);
+
+  const changeStencilBridgeSettings = useCallback((patch: Partial<StencilBridgeToolSettings>) => {
+    setStencilBridgeTool((current) => {
+      if (!current) return current;
+      const settings = normalizeStencilBridgeTool({ ...current.settings, ...patch });
+      writeStencilBridgeToolSettings(settings);
+      return { ...current, settings };
+    });
+  }, []);
+
+  // The bridges are found a moment after the numbers change and show where they will go.
+  useEffect(() => {
+    const run = ++stencilBridgePreviewRunRef.current;
+    const sources = stencilBridgeTool ? stencilBridgeTool.sourceIds.map((id) => shapes.find((shape) => shape.id === id)) : [];
+    if (!stencilBridgeTool || sources.length === 0 || sources.some((shape) => !shape)) {
+      setStencilBridgePreview(null);
+      return;
+    }
+    const { base, replaced } = stencilBridgeBase(sources as WorkplaneShape[]);
+    const settings = stencilBridgeTool.settings;
+    const timer = window.setTimeout(() => {
+      void stencilBridgePlan(base, settings)
+        .then((plan) => {
+          if (stencilBridgePreviewRunRef.current !== run) return;
+          const bridges = plan.ok
+            ? stencilBridgeBoxes(plan.rects, stencilBridgeLevels(plan.minY, plan.maxY, settings), { color: "#f59f00", name: t("stencilBridges.name"), idPrefix: "stencil-bridge-preview" })
+            : [];
+          setStencilBridgePreview({ bridges, plan, replaced });
+        })
+        .catch(() => {
+          if (stencilBridgePreviewRunRef.current === run) setStencilBridgePreview({ bridges: [], plan: { ok: false, reason: "failed" }, replaced });
+        });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [shapes, stencilBridgeTool]);
+
+  /**
+   * The group of the plate and its bridges, for the panel and the AI bridge alike. Bodies not grouped yet (a plate and
+   * the text as a hole beside it) are grouped first, so the text cuts the plate and not the bridges.
+   */
+  const buildStencilBridgeGroup = useCallback(async (sources: WorkplaneShape[], settings: StencilBridgeToolSettings) => {
+    const { base, replaced } = stencilBridgeBase(sources);
+    const plan = await stencilBridgePlan(base, settings);
+    if (!plan.ok) return { ok: false as const, reason: plan.reason };
+    if (plan.parts === 0) return { ok: false as const, reason: "nothing" as const };
+    if (plan.rects.length === 0) return { ok: false as const, reason: "unreachable" as const };
+    const color = base.find((shape) => !shape.hole)?.color ?? sources[0].color;
+    const bridges = stencilBridgeBoxes(plan.rects, stencilBridgeLevels(plan.minY, plan.maxY, settings), { color, name: t("stencilBridges.name") });
+    const limit = workspaceSettingsRef.current.booleanTriangleLimit;
+    let plate = base[0];
+    if (base.length > 1) {
+      const inner = await buildGroupedShapeOffThread(base, limit, geometryAbortRef.current?.signal);
+      if (!inner.group) return { ok: false as const, reason: "failed" as const };
+      plate = canonicalizeShape({ ...inner.group, groupOperation: "group" });
+    }
+    const outer = await buildGroupedShapeOffThread([plate, ...bridges], limit, geometryAbortRef.current?.signal);
+    if (!outer.group) return { ok: false as const, reason: "failed" as const };
+    const group = canonicalizeShape({ ...outer.group, name: sources.length === 1 ? sources[0].name : plate.name, groupOperation: "group" });
+    return { ok: true as const, group, plan, bridges, replaced };
+  }, []);
+
+  const applyStencilBridges = useCallback(async () => {
+    const tool = stencilBridgeTool;
+    if (!tool || tool.busy) return;
+    const sources = tool.sourceIds.map((id) => shapesRef.current.find((shape) => shape.id === id));
+    if (sources.some((shape) => !shape)) return;
+    setStencilBridgeTool({ ...tool, busy: true });
+    const sourceFingerprint = projectShapesFingerprint(shapesRef.current);
+    const sourceProjectId = projectInfoRef.current.projectId;
+    const built = await buildStencilBridgeGroup(sources as WorkplaneShape[], tool.settings).catch(() => ({ ok: false as const, reason: "failed" as const }));
+    if (projectInfoRef.current.projectId !== sourceProjectId || projectShapesFingerprint(shapesRef.current) !== sourceFingerprint) {
+      setStencilBridgeTool((current) => (current ? { ...current, busy: false } : current));
+      setNotice(t("status.groupChanged"));
+      return;
+    }
+    if (!built.ok) {
+      setStencilBridgeTool((current) => (current ? { ...current, busy: false } : current));
+      setNotice(t(`stencilBridges.reason.${built.reason}`));
+      return;
+    }
+    setStencilBridgeTool(null);
+    const removed = new Set(tool.sourceIds);
+    const message = built.plan.unheld > 0
+      ? t("status.stencilBridgesCreatedUnheld", { count: built.bridges.length, parts: built.plan.parts, unheld: built.plan.unheld })
+      : t("status.stencilBridgesCreated", { count: built.bridges.length, parts: built.plan.parts });
+    commitShapes([...shapesRef.current.filter((shape) => !removed.has(shape.id)), built.group], built.group.id, message);
+  }, [buildStencilBridgeGroup, commitShapes, stencilBridgeTool]);
+
+  // The tool belongs to the bodies it was started for and gives way to the other tools.
+  useEffect(() => {
+    if (!stencilBridgeTool) return;
+    const selected = new Set(selectedIds);
+    if (
+      selectedIds.length !== stencilBridgeTool.sourceIds.length
+      || stencilBridgeTool.sourceIds.some((id) => !selected.has(id))
+      || mateTool || layFlatPickMode || pivotPickMode || arrayTool || scalePercentTool
+      || shellTool || deleteFaceTool || edgeModifier || splitSession || simplifyToolId || holePatternTool || faceTool || supportRibTool
+    ) {
+      setStencilBridgeTool(null);
+    }
+  }, [arrayTool, deleteFaceTool, edgeModifier, faceTool, holePatternTool, layFlatPickMode, mateTool, pivotPickMode, scalePercentTool, selectedIds, shellTool, simplifyToolId, splitSession, stencilBridgeTool, supportRibTool]);
 
   // The worker reads the body's faces for picking; the tool starts empty and fills in when they come.
   // `error`: a refusal that is still to be read stays in the panel while the faces come again.
@@ -10190,6 +10961,11 @@ export function LayerlingEditor({
   }, []);
 
   const groupSelected = useCallback(async () => {
+    // A locked part says why it stays out of a group, and the way round it, in place of the bare "Object locked".
+    if (selectionLocked) {
+      setNotice(t("status.groupLocked"));
+      return;
+    }
     if (refuseLockedSelection()) return;
     if (selectedShapes.length < 2) {
       setNotice(t("status.selectTwoToGroup"));
@@ -10227,10 +11003,14 @@ export function LayerlingEditor({
       editableGroup.id,
       result.openGapEdges ? t("status.cutLeftOpen", { count: result.openGapEdges }) : result.mergeWarning ?? withClosedHolesNote(t("status.groupedMany", { count: selectedShapes.length }), result.closedHoles),
     );
-  }, [refuseLockedSelection, commitShapes, selectedIds, selectedShapes, activeRotationPivot]);
+  }, [selectionLocked, refuseLockedSelection, commitShapes, selectedIds, selectedShapes, activeRotationPivot]);
 
   /** the usual bundle (Ctrl+B): the parts move, turn and scale together and stay what they are. */
   const bundleSelected = useCallback(() => {
+    if (selectionLocked) {
+      setNotice(t("status.groupLocked"));
+      return;
+    }
     if (refuseLockedSelection()) return;
     if (selectedShapes.length < 2) {
       setNotice(t("status.selectTwoToBundle"));
@@ -10248,7 +11028,7 @@ export function LayerlingEditor({
     const selected = new Set(selectedIds);
     const bundle = withSelectionPivot(canonicalizeShape({ ...group, name: "Bundle", groupOperation: "bundle" }), activeRotationPivot);
     commitShapes([...shapesRef.current.filter((shape) => !selected.has(shape.id)), bundle], bundle.id, t("status.bundledMany", { count: selectedShapes.length }));
-  }, [refuseLockedSelection, commitShapes, selectedIds, selectedShapes, activeRotationPivot]);
+  }, [selectionLocked, refuseLockedSelection, commitShapes, selectedIds, selectedShapes, activeRotationPivot]);
 
   /**
    * A socket with screw holes (D-Sub 9) chosen for an opening: the opening takes it, and it and its
@@ -10348,7 +11128,7 @@ export function LayerlingEditor({
   // Another tool opens its panel where this one stands, and what it applies changes the design anyway: the check gives way,
   // and does not open over it.
   const otherToolPanelOpen = Boolean(
-    arrayTool || scalePercentTool || simplifyToolId || holePatternTool || faceTool || mateTool || cookieCutterTool || flexiTool
+    arrayTool || scalePercentTool || simplifyToolId || holePatternTool || faceTool || supportRibTool || stencilBridgeTool || mateTool || cookieCutterTool || flexiTool
     || lidTool || cableTool || cutOutTool || punchTool || shellTool || deleteFaceTool || splitSession || edgeModifier,
   );
   /**
@@ -10907,7 +11687,7 @@ export function LayerlingEditor({
     const result = operation === "intersection"
       ? await buildIntersectionShapeFromSelection(parts, workspaceSettingsRef.current.booleanTriangleLimit)
       : operation === "hull"
-        ? await buildHullShapeFromSelection(parts, workspaceSettingsRef.current.booleanTriangleLimit)
+        ? await buildHullShapeFromSelection(parts, workspaceSettingsRef.current.booleanTriangleLimit, { keepHoles: Boolean(original.hullKeepHoles) })
         : operation === "loft"
         ? await buildSketchLoftFromSelection(parts)
         : operation === "bundle"
@@ -10931,6 +11711,8 @@ export function LayerlingEditor({
       // Multicolor switched on or off stays so after Done; a group cut into one body lost it and turned one colour (#1323).
       ...(typeof original.multicolor === "boolean" ? { multicolor: original.multicolor } : {}),
     }, Boolean(original.hole))));
+    // The group's own paint (paint.ts) goes over to the group built again, where it lay in the world.
+    if (original.paint?.length && canPaintShape(group)) group.paint = rebasePaintStrokes(original.paint, original, group);
     const mergeWarning = "mergeWarning" in result && typeof result.mergeWarning === "string" ? result.mergeWarning : "";
     return { group, mergeWarning };
   }, []);
@@ -11148,6 +11930,30 @@ export function LayerlingEditor({
     })().finally(() => keptPartsRunsRef.current.delete(key));
     keptPartsRunsRef.current.set(key, run);
     return run;
+  }, [commitShapes, rebuildGroupFromParts]);
+
+  /** A hull built again with its parts' holes kept open or filled (Discussion #1440), as one step. */
+  const setHullKeepHoles = useCallback(async (hullId: string, keepHoles: boolean): Promise<{ ok: true; hull: WorkplaneShape } | { ok: false; message: string }> => {
+    const hull = shapesRef.current.find((shape) => shape.id === hullId);
+    if (!hull || hull.groupOperation !== "hull" || !hull.groupedShapes?.length) return { ok: false, message: t("status.hullNeedsShapes") };
+    if (bodyLocked(hull)) return { ok: false, message: t("status.objectLocked") };
+    if (Boolean(hull.hullKeepHoles) === keepHoles) return { ok: true, hull };
+    const sourceFingerprint = projectShapesFingerprint(shapesRef.current);
+    const sourceProjectId = projectInfoRef.current.projectId;
+    setNotice(t("status.hulling"));
+    const result = await rebuildGroupFromParts({ ...hull, hullKeepHoles: keepHoles }, restoreGroupedChildren(hull));
+    if (projectInfoRef.current.projectId !== sourceProjectId || projectShapesFingerprint(shapesRef.current) !== sourceFingerprint) {
+      const message = t("status.hullChanged");
+      setNotice(message);
+      return { ok: false, message };
+    }
+    if (!result.group) {
+      setNotice(result.failure);
+      return { ok: false, message: result.failure };
+    }
+    const rebuilt = result.group;
+    commitShapes(shapesRef.current.map((shape) => (shape.id === hullId ? rebuilt : shape)), hullId, t(keepHoles ? "status.hullKeepsHoles" : "status.hullFillsHoles"));
+    return { ok: true, hull: rebuilt };
   }, [commitShapes, rebuildGroupFromParts]);
 
   // The design as the last finished step left it, by id: a group in it at another size has just been resized, one
@@ -11637,10 +12443,10 @@ export function LayerlingEditor({
    * there already when its middle is taken, selected. The settings window's button and the MCP tool place it; it returns
    * the new bundle, or why it could not be made, as the notice says it.
    */
-  const placeFitTest = useCallback(async (): Promise<{ shape: WorkplaneShape } | { error: string }> => {
+  const placeFitTest = useCallback(async (pinBase?: boolean): Promise<{ shape: WorkplaneShape } | { error: string }> => {
     setNotice(t("fitTest.building"), true);
     try {
-      const built = await fitTestShape(workspaceSettingsRef.current.booleanTriangleLimit);
+      const built = await fitTestShape(workspaceSettingsRef.current.booleanTriangleLimit, undefined, { base: pinBase ?? fitTestPinBaseChosen() });
       // Always on the plate, never on a face the workplane was set on: it is printed as it lies.
       const base = horizontalPlacementWorkplane();
       const origin = buildPlates.newShapeOrigin(base);
@@ -12026,8 +12832,22 @@ export function LayerlingEditor({
   } = useCustomShapes({
     sharedProjectsEnabled, setNotice, commitShapes, setProjectAssets, downloadBlob: downloadBlobFile,
     shapesRef, selectedIdsRef, notesRef, historyViewStateRef, projectAssetsRef, workspaceSettingsRef, snapGridRef, projectInfoRef, placementWorkplaneRef,
+    newShapeOrigin: buildPlates.newShapeOrigin,
   });
   const noticeError = (error: unknown) => setNotice(error instanceof Error ? localizedError(error.message) : String(error));
+  /**
+   * A custom shape put into the design, from the shapes panel or the command search: like the shapes of the library it
+   * hangs on the pointer and sits down where you click, also on a face (#463). Without "click to place" it stays where
+   * it was put.
+   */
+  const insertCustomShapeAndCarry = (id: string) => {
+    void insertMyShape(id).then((inserted) => {
+      if (!workspaceSettingsRef.current.clickToPlaceShapes || inserted.length === 0) return;
+      setCruiseAsset(null);
+      setCarryIds(inserted.map((shape) => shape.id));
+      setNotice(t("status.carryPlace"));
+    }).catch(noticeError);
+  };
 
   /**
    * Throws away every earlier step of the design: it keeps the state it has now, as its only one
@@ -12098,6 +12918,13 @@ export function LayerlingEditor({
 
       if (command.action === "select_objects") {
         const requestedIds = mcpStringArray(params.ids ?? params.id);
+        if (params.invert === true) {
+          // Invert selection (Discussion #1472), the editor's own command: every visible object but these.
+          const unknownId = requestedIds.find((id) => !currentShapes().some((shape) => shape.id === id));
+          if (unknownId) throw new Error(`No object with the id ${unknownId}`);
+          const nextIds = invertSelection(params.ids === undefined && params.id === undefined ? undefined : requestedIds);
+          return { selectedIds: nextIds, objects: currentShapes().filter((shape) => nextIds.includes(shape.id)).map(mcpShapeSummary) };
+        }
         const validIds = requestedIds.filter((id) => currentShapes().some((shape) => shape.id === id));
         setSelectedIds(validIds);
         selectedIdsRef.current = validIds;
@@ -12105,6 +12932,31 @@ export function LayerlingEditor({
           ? t("status.mcpCleared")
           : validIds.length === 1 ? t("status.mcpSelectedOne") : t("status.mcpSelectedMany", { count: validIds.length }));
         return { selectedIds: validIds, objects: currentShapes().filter((shape) => validIds.includes(shape.id)).map(mcpShapeSummary) };
+      }
+
+      if (command.action === "rename_project") {
+        // As the pencil beside the project name does (Discussion #1483): trimmed, at most 80 characters, never empty.
+        const name = typeof params.name === "string" ? params.name.trim().slice(0, 80) : "";
+        if (!name) throw new Error("Give the project a name that is not empty");
+        const rename = onProjectNameChangeRef.current;
+        if (!rename || !projectInfoRef.current.projectId) throw new Error("This editor has no project to rename");
+        const previousName = projectInfoRef.current.projectName ?? null;
+        if (name !== previousName) rename(name);
+        // Seen at once by layerling_list_editors and get_scene, before the new name comes back down as a prop.
+        projectInfoRef.current = { ...projectInfoRef.current, projectName: name };
+        return { projectId: projectInfoRef.current.projectId, previousName, projectName: name };
+      }
+
+      if (command.action === "hide_others") {
+        // Hide others (Discussion #1472), through the editor's own command: one undo step.
+        const requestedIds = mcpStringArray(params.ids ?? params.id);
+        const unknownId = requestedIds.find((id) => !currentShapes().some((shape) => shape.id === id));
+        if (unknownId) throw new Error(`No object with the id ${unknownId}`);
+        const outcome = hideOthers(requestedIds.length ? requestedIds : undefined);
+        if (outcome.problem === "noSelection") throw new Error("Select the objects to keep first, or pass their ids");
+        if (outcome.problem === "nothingElse") throw new Error("Nothing else is visible to hide");
+        const keptIds = selectedIdsRef.current;
+        return { hiddenIds: outcome.hiddenIds, keptIds };
       }
 
       if (command.action === "delete_objects") {
@@ -12586,6 +13438,19 @@ export function LayerlingEditor({
             commitShapes(currentShapes().map((shape) => shape.id === target.id ? rebuilt : shape), target.id, t("status.sketchUpdated"));
           }
         }
+        // How finely an exact revolved body is cut into facets (Discussion #1426), as its Smoothness field sets it.
+        const smoothnessRequest = params.revolveSmoothness;
+        if (smoothnessRequest !== undefined) {
+          if (smoothnessRequest !== "standard" && smoothnessRequest !== "fine" && smoothnessRequest !== "extraFine") throw new Error("revolveSmoothness must be standard, fine or extraFine");
+          if (updated.sketchOperation !== "revolve" || !updated.cadBrep) throw new Error("revolveSmoothness is for an exact revolved sketch body; a helix or an older mesh revolve takes sides instead");
+          const settings = normalizeSketchRevolveSettings({ ...updated.sketchRevolve, smoothness: smoothnessRequest === "standard" ? undefined : smoothnessRequest });
+          if ((settings.smoothness ?? "standard") !== (updated.sketchRevolve?.smoothness ?? "standard")) {
+            const rebuilt = await revolvedShapeWithSettings(target.id, settings);
+            if (!rebuilt) throw new Error(t("status.revolveSettingsFailed"));
+            updated = rebuilt;
+            commitShapes(currentShapes().map((shape) => shape.id === target.id ? rebuilt : shape), target.id, t("status.revolveUpdated"));
+          }
+        }
         if (updated.kind === "vase" && params.vaseParts === true) {
           const { parts, missing } = layOutVaseAccessories(updated.id);
           return { object: mcpShapeSummary(updated), parts: parts.map(mcpShapeSummary), ...(missing.length ? { notPossible: missing } : {}) };
@@ -12631,6 +13496,61 @@ export function LayerlingEditor({
         // A group left with one part is gone: that part comes back in its place.
         const left = !group && outcome.partIds?.[1] ? findShape(outcome.partIds[1]) : null;
         return { message: outcome.message, object: part ? mcpShapeSummary(part) : null, group: group ? mcpShapeSummary(group) : null, ...(left ? { remainingPart: mcpShapeSummary(left) } : {}) };
+      }
+
+      if (command.action === "mate_faces" && params.mode === "point") {
+        // "Point to point" (Discussion #1491): the object moves straight so `point` lands on `targetPoint`.
+        const all = currentShapes();
+        const mover = all.find((shape) => shape.id === params.id);
+        if (!mover) throw new Error("mate_faces point needs id of an existing object");
+        if (mover.locked) throw new Error("Unlock the object before moving it");
+        const positionOf = (value: unknown, label: string) => {
+          const raw = value && typeof value === "object" ? value as Record<string, unknown> : null;
+          if (!raw || ![raw.x, raw.z, raw.elevation].every((entry) => typeof entry === "number" && Number.isFinite(entry))) {
+            throw new Error(`mate_faces point needs ${label} { x, z, elevation }`);
+          }
+          return { x: raw.x as number, y: raw.elevation as number, z: raw.z as number };
+        };
+        const source = positionOf(params.point, "point");
+        const goal = positionOf(params.targetPoint, "targetPoint");
+        const named = params.axes === undefined ? ["x", "z", "elevation"] : mcpStringArray(params.axes);
+        if (named.length === 0 || named.some((axis) => !["x", "z", "elevation"].includes(axis))) {
+          throw new Error("mate_faces point axes must be some of x, z, elevation");
+        }
+        const axes: MateAxes = { x: named.includes("x"), y: named.includes("z"), z: named.includes("elevation") };
+        const motion = pointMotion(source, goal, axes);
+        let nextShapes = pointMatedShapes(all, mover.id, source, goal, axes);
+        // A second and third pair turn the body after the move (Discussion #1491). Their points are
+        // given where they are now, before anything moves, and are carried along with the body.
+        const pivot = new THREE.Vector3(source.x, source.y, source.z).add(motion);
+        const carried: THREE.Quaternion[] = [];
+        const carry = (point: { x: number; y: number; z: number }) => carried.reduce(
+          (current, rotation) => turnedAbout(current, rotation, pivot),
+          new THREE.Vector3(point.x, point.y, point.z).add(motion),
+        );
+        const turns: { pair: number; degrees: number }[] = [];
+        let axisPoint: { x: number; y: number; z: number } | null = null;
+        const pairGiven = (pair: 2 | 3) => params[`point${pair}`] !== undefined || params[`targetPoint${pair}`] !== undefined;
+        if (pairGiven(3) && !pairGiven(2)) throw new Error("mate_faces point needs point2 and targetPoint2 before point3");
+        for (const pair of [2, 3] as const) {
+          if (!pairGiven(pair)) break;
+          const from = carry(positionOf(params[`point${pair}`], `point${pair}`));
+          const to = positionOf(params[`targetPoint${pair}`], `targetPoint${pair}`);
+          const rotation = pair === 2 ? pointTurnAboutPivot(pivot, from, to) : pointTurnAboutAxis(pivot, axisPoint!, from, to);
+          if (!rotation) throw new Error(pair === 2 ? "point2 and targetPoint2 must not lie on the first point" : "point3 and targetPoint3 must not lie on the line through the first two target points");
+          nextShapes = pointTurnedShapes(nextShapes, mover.id, rotation, pivot);
+          carried.push(rotation);
+          axisPoint = to;
+          turns.push({ pair, degrees: Number((2 * Math.acos(Math.min(1, Math.abs(rotation.w))) * 180 / Math.PI).toFixed(3)) });
+        }
+        commitShapes(nextShapes, [mover.id], t(turns.length ? "status.matePointTurned" : "status.matedPoint"));
+        return {
+          mode: "point",
+          axes: named,
+          moved: { x: Number(motion.x.toFixed(4)), z: Number(motion.z.toFixed(4)), elevation: Number(motion.y.toFixed(4)) },
+          ...(turns.length ? { turned: turns } : {}),
+          object: mcpShapeSummary(nextShapes.find((shape) => shape.id === mover.id) as WorkplaneShape),
+        };
       }
 
       if (command.action === "mate_faces") {
@@ -12842,6 +13762,8 @@ export function LayerlingEditor({
           arrangement,
           size,
           height: mcpNumber(params.height, size),
+          holeAngle: mcpOptionalNumber(params.holeAngle),
+          holeTilt: mcpOptionalNumber(params.holeTilt),
           spacing: mcpNumber(params.spacing, DEFAULT_HOLE_PATTERN.spacing),
           rowSpacing: mcpOptionalNumber(params.rowSpacing),
           margin: mcpNumber(params.margin, DEFAULT_HOLE_PATTERN.margin),
@@ -12849,6 +13771,7 @@ export function LayerlingEditor({
           holeType,
           headSize: mcpOptionalNumber(params.headSize) ?? screw?.headSize,
           headDepth: mcpOptionalNumber(params.headDepth) ?? screw?.headDepth,
+          headAngle: screw?.headAngle,
           perimeterBy: count !== undefined ? "count" : "spacing",
           perimeterCount: count,
           perimeterCorners: params.corners !== false,
@@ -12862,6 +13785,7 @@ export function LayerlingEditor({
         const read = readHolePatternFace(await faceReadPositionsOffThread(target, geometryAbortRef.current?.signal), point, normal);
         if (!read.ok) throw new Error(read.reason === "curved" ? "That face is curved but not a round wall; perforate_face needs a flat face or the wall of a cylinder, tube or bore" : "perforate_face found no face there");
         if (isRoundWallFace(read.face) && arrangement === "perimeter") throw new Error("arrangement perimeter needs a flat face; on a round wall use grid or staggered");
+        if (isRoundWallFace(read.face) && holeTiltRadians(settings) !== 0) throw new Error("holeTilt needs a flat face for now; on a round wall the holes point straight at the axis");
         const plan = holePatternShapes(read.face, settings, t("holePattern.holeName"), undefined, custom);
         if (plan.tooMany) throw new Error("That would be too many holes; make them bigger or the spacing wider");
         if (plan.holes.length === 0) throw new Error("No hole fits on that face with this size and margin");
@@ -12890,6 +13814,220 @@ export function LayerlingEditor({
               ...(plan.wall.columns !== undefined ? { columns: plan.wall.columns, spacing: Number((plan.wall.spacing ?? 0).toFixed(2)) } : {}),
             },
           } : {}),
+          normal: [normal.x, normal.y, normal.z].map((value) => Number(value.toFixed(4))),
+        };
+      }
+
+      if (command.action === "paint_object") {
+        // The paint tool's strokes (paint.ts), given in the world: a point on the surface for a fill or a circle, a
+        // shape drawn in a flat view from one side for a lasso. One step of the history for the whole call.
+        const all = currentShapes();
+        const selectedNow = selectedIdsRef.current;
+        const targetId = typeof params.id === "string" ? params.id : selectedNow.length === 1 ? selectedNow[0] : null;
+        const target = all.find((shape) => shape.id === targetId);
+        if (!target) throw new Error("paint_object needs id (or exactly one selected object)");
+        if (target.locked) throw new Error("Unlock the object before painting it");
+        if (!canPaintShape(target)) throw new Error("Only a single solid body, or a group cut into one body in one colour, can be painted - not a hole, a sketch, a bundle or a group of separate parts (paint its parts instead)");
+        const requested = params.strokes === undefined ? [] : Array.isArray(params.strokes) ? params.strokes : null;
+        if (!requested) throw new Error("paint_object strokes must be a list");
+        const vec3 = (value: unknown) => (Array.isArray(value) && value.length === 3 && value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+          ? new THREE.Vector3(value[0] as number, value[1] as number, value[2] as number)
+          : null);
+        // The kernel first: the circles and lassos are cut into the mesh, not laid on whole faces.
+        await getManifoldRuntime().catch(() => null);
+        let strokes: PaintStroke[] = params.clear === true ? [] : [...(target.paint ?? [])];
+        let skipped = 0;
+        for (const [index, entry] of requested.entries()) {
+          if (!entry || typeof entry !== "object") throw new Error(`strokes[${index}] must be an object`);
+          const raw = entry as Record<string, unknown>;
+          const mode = raw.mode === "circle" || raw.mode === "lasso" || raw.mode === "fill" ? raw.mode : null;
+          if (!mode) throw new Error(`strokes[${index}].mode must be fill, circle or lasso`);
+          const erase = raw.erase === true || raw.color === null;
+          const color = erase ? DEFAULT_PAINT_TOOL.color : normalizeHexColor(typeof raw.color === "string" ? raw.color : undefined);
+          if (!color) throw new Error(`strokes[${index}].color must be a colour as #rrggbb (or erase: true)`);
+          const settings = normalizePaintTool({ mode, color, erase, angle: mcpOptionalNumber(raw.angle), diameter: mcpOptionalNumber(raw.diameter) });
+          let stroke: PaintStroke | null;
+          if (mode === "lasso") {
+            const side = PAINT_VIEW_SIDES.find((name) => name === raw.view);
+            if (!side) throw new Error(`strokes[${index}].view must be one of ${PAINT_VIEW_SIDES.join(", ")}`);
+            const outline = Array.isArray(raw.outline)
+              ? raw.outline.filter((point): point is [number, number] => Array.isArray(point) && point.length === 2 && point.every((value) => typeof value === "number" && Number.isFinite(value)))
+              : [];
+            if (outline.length < 3) throw new Error(`strokes[${index}].outline needs at least three points`);
+            const lasso = paintSideLasso(side, outline);
+            stroke = paintLassoStroke(target, lasso.view, lasso.outline, settings);
+          } else {
+            const point = vec3(raw.point);
+            if (!point) throw new Error(`strokes[${index}].point must be [x, y, z] on the body's surface (y is the height)`);
+            const normal = vec3(raw.normal) ?? paintSurfaceNormalAt(target, point);
+            if (!normal || normal.lengthSq() < 1e-12) throw new Error(`strokes[${index}].point is not on the body's surface`);
+            stroke = paintStrokeAt(target, point, normal, settings);
+          }
+          if (!stroke) throw new Error(`strokes[${index}] could not be made into a stroke`);
+          const before = paintedBodyMesh({ ...target, paint: strokes })?.skipped ?? 0;
+          const next = [...strokes, stroke];
+          if ((paintedBodyMesh({ ...target, paint: next })?.skipped ?? 0) > before) {
+            skipped += 1;
+            continue;
+          }
+          strokes = next;
+        }
+        if (strokes.length > PAINT_MAX_STROKES) throw new Error(`A body carries ${PAINT_MAX_STROKES} strokes at most; pass clear: true to start again`);
+        const painted = { ...target, paint: strokes.length ? strokes : undefined };
+        commitShapes(currentShapes().map((shape) => (shape.id === target.id ? painted : shape)), target.id, t(strokes.length ? "status.paintAdded" : "status.paintCleared"));
+        const laid = strokes.length ? paintedBodyMesh(painted) : null;
+        return {
+          object: mcpShapeSummary(painted),
+          strokes: strokes.length,
+          colors: paintColors(painted),
+          skipped,
+          ...(laid ? { cut: laid.cut || !strokes.some((stroke) => stroke.mode !== "fill"), paintedFaces: laid.colors.filter(Boolean).length } : {}),
+        };
+      }
+
+      if (command.action === "stencil_bridges") {
+        // The same code as the stencil bridge tool in the view (Discussion #1438).
+        const all = currentShapes();
+        const selectedNow = selectedIdsRef.current;
+        const ids = Array.isArray(params.ids) && params.ids.every((id) => typeof id === "string")
+          ? params.ids as string[]
+          : typeof params.targetId === "string"
+            ? [params.targetId]
+            : typeof params.id === "string" ? [params.id] : selectedNow;
+        if (ids.length === 0) throw new Error("stencil_bridges needs ids (or a selection): the plate with the text cut through, grouped or with the text beside it as a hole");
+        const targets = ids.map((id) => all.find((shape) => shape.id === id));
+        const missing = ids.filter((_, index) => !targets[index]);
+        if (missing.length) throw new Error(`No object with id ${missing.join(", ")}`);
+        const sources = targets as WorkplaneShape[];
+        if (sources.some((shape) => bodyLocked(shape))) throw new Error("Unlock the objects before adding stencil bridges");
+        if (sources.some((shape) => isNonSolidShape(shape)) || sources.every((shape) => shape.hole)) throw new Error("stencil_bridges needs a solid body, not only holes");
+        const given = (key: string) => mcpOptionalNumber(params[key]);
+        if (params.position !== undefined && !STENCIL_BRIDGE_POSITIONS.includes(params.position as StencilBridgePosition)) {
+          throw new Error(`position must be one of ${STENCIL_BRIDGE_POSITIONS.join(", ")}`);
+        }
+        const settings = normalizeStencilBridgeTool({
+          ...readStencilBridgeToolSettings(),
+          ...(given("width") !== undefined ? { width: given("width") } : {}),
+          ...(given("count") !== undefined ? { count: given("count") } : {}),
+          height: given("height") ?? null,
+          ...(typeof params.position === "string" ? { position: params.position as StencilBridgePosition } : {}),
+        });
+        const reasons: Record<string, string> = {
+          noBody: "There is no solid body to hold",
+          nothing: "Nothing would fall out: seen from above, no part lies inside a hole. Cut the text through the plate first",
+          unreachable: "No bridge reaches the parts that would fall out at this width; try a smaller width",
+          failed: "The bridges could not be made",
+        };
+        const sourceFingerprint = projectShapesFingerprint(currentShapes());
+        const sourceProjectId = projectInfoRef.current.projectId;
+        const built = await buildStencilBridgeGroup(sources, settings);
+        if (!built.ok) throw new Error(reasons[built.reason]);
+        if (projectInfoRef.current.projectId !== sourceProjectId || projectShapesFingerprint(currentShapes()) !== sourceFingerprint) {
+          throw new Error("The scene changed while making the bridges; run the command again");
+        }
+        writeStencilBridgeToolSettings(settings);
+        const removed = new Set(ids);
+        const message = built.plan.unheld > 0
+          ? t("status.stencilBridgesCreatedUnheld", { count: built.bridges.length, parts: built.plan.parts, unheld: built.plan.unheld })
+          : t("status.stencilBridgesCreated", { count: built.bridges.length, parts: built.plan.parts });
+        commitShapes([...currentShapes().filter((shape) => !removed.has(shape.id)), built.group], built.group.id, message);
+        const levels = stencilBridgeLevels(built.plan.minY, built.plan.maxY, settings);
+        const round = (value: number) => Number(value.toFixed(4));
+        return {
+          object: mcpShapeSummary(built.group),
+          parts: built.plan.parts,
+          bridges: built.bridges.length,
+          unheld: built.plan.unheld,
+          replaced: built.replaced,
+          bridgeHeight: round(levels.height),
+          bridgeElevation: round(levels.elevation),
+          settings,
+        };
+      }
+
+      if (command.action === "support_rib") {
+        // The same code as the support rib tool in the view (Discussion #1385).
+        const all = currentShapes();
+        const selectedNow = selectedIdsRef.current;
+        const targetId = typeof params.targetId === "string"
+          ? params.targetId
+          : typeof params.id === "string" ? params.id : selectedNow.length === 1 ? selectedNow[0] : null;
+        const target = all.find((shape) => shape.id === targetId);
+        if (!target) throw new Error("support_rib needs targetId (or exactly one selected object)");
+        if (bodyLocked(target)) throw new Error("Unlock the object before adding a support rib");
+        if (target.hole || isNonSolidShape(target)) throw new Error("support_rib needs a solid body, not a hole");
+        const vec3 = (value: unknown) => (Array.isArray(value) && value.length === 3 && value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+          ? new THREE.Vector3(value[0] as number, value[1] as number, value[2] as number)
+          : null);
+        let point = vec3(params.point);
+        let normal = vec3(params.normal);
+        if (!point || !normal || normal.lengthSq() < 1e-12) {
+          const side = typeof params.targetFace === "string" && params.targetFace in LAY_FLAT_SIDES ? params.targetFace as LayFlatSide : "bottom";
+          const [x, y, z] = LAY_FLAT_SIDES[side];
+          const faceNormal = nearestFaceNormal(target, new THREE.Vector3(x, y, z).applyQuaternion(quaternionForShape(target)));
+          if (!faceNormal) throw new Error("support_rib found no face on that object");
+          normal = faceNormal.clone().normalize();
+          const center = new THREE.Vector3(target.x, (target.elevation ?? 0) + target.height / 2, target.z);
+          const reach = meshReachAlong(meshForShape(target), normal as THREE.Vector3);
+          point = center.clone().addScaledVector(normal, reach - center.dot(normal));
+        }
+        const given = (key: string) => mcpOptionalNumber(params[key]);
+        const settings = normalizeSupportRib({
+          ...readSupportRibSettings(readPrintCheckSettings().nozzle),
+          height: given("height") ?? null,
+          ...(given("nozzle") !== undefined ? { nozzle: given("nozzle") } : {}),
+          ...(given("layerHeight") !== undefined ? { layerHeight: given("layerHeight") } : {}),
+          ...(given("firstLayer") !== undefined ? { firstLayer: given("firstLayer") } : {}),
+          ...(given("bridgeSpacing") !== undefined ? { bridgeSpacing: given("bridgeSpacing") } : {}),
+          ...(given("footWidth") !== undefined ? { footWidth: given("footWidth") } : {}),
+          ...(given("filletRadius") !== undefined ? { filletRadius: given("filletRadius") } : {}),
+          ...(given("topRadius") !== undefined ? { topRadius: given("topRadius") } : {}),
+          thickness: given("thickness") ?? null,
+          gap: given("gap") ?? null,
+          bridgeWidth: given("bridgeWidth") ?? null,
+          footThickness: given("footThickness") ?? null,
+          bundle: params.bundle !== false,
+        });
+        const reasons: Record<string, string> = {
+          notDown: "That face does not look down; support_rib needs the lower face of a tilted part",
+          tooFlat: "That face is almost level; a rib cannot stand under it",
+          tooSteep: "That face is almost upright and needs no rib",
+          offBed: "That face does not reach down to the bed straight down its slope from the point, nor stop within 3 mm of it at a rounded or chamfered bottom edge; the part must stand tilted on one edge",
+          tooLow: "The rib would be too low; give a greater height",
+          collides: "The rib would run into the part; pick another point on the face or a lower height",
+          partOffBed: "The part does not stand on the bed; drop it onto the workplane first so the bridges meet their layers",
+          failed: "The rib could not be built there",
+        };
+        const sourceFingerprint = projectShapesFingerprint(currentShapes());
+        const sourceProjectId = projectInfoRef.current.projectId;
+        const read = readPerforableFace(await faceReadPositionsOffThread(target, geometryAbortRef.current?.signal), point, normal);
+        if (!read.ok) throw new Error(read.reason === "curved" ? "That face is curved; support_rib needs a flat lower face - with a rounded bottom edge, the flat face above the rounding" : "support_rib found no flat face there");
+        const face = supportRibFace(read.face);
+        if (!face.ok) throw new Error(reasons[face.reason]);
+        const built = buildSupportRib(await getManifoldRuntime(), face.face, settings, target);
+        if (!built.ok) throw new Error(reasons[built.reason]);
+        const rib = supportRibShape(createLocalId("support-rib"), t("supportRib.name"), target.color, built.positions, target.id);
+        if (!rib) throw new Error(reasons.failed);
+        if (projectInfoRef.current.projectId !== sourceProjectId || projectShapesFingerprint(currentShapes()) !== sourceFingerprint) {
+          throw new Error("The scene changed while building the rib; run the command again");
+        }
+        writeSupportRibSettings(settings);
+        const message = t("status.supportRibCreated", { count: built.plan.bridges.length });
+        const group = settings.bundle ? groupedShape([target, rib]) : null;
+        const bundle = group ? canonicalizeShape({ ...group, name: target.name, groupOperation: "bundle" }) : null;
+        if (bundle) commitShapes([...currentShapes().filter((shape) => shape.id !== target.id), bundle], bundle.id, message);
+        else commitShapes([...currentShapes(), rib], rib.id, message);
+        const round = (value: number) => Number(value.toFixed(4));
+        return {
+          object: mcpShapeSummary(bundle ?? rib),
+          rib: mcpShapeSummary(rib),
+          bundled: Boolean(bundle),
+          angle: Number(face.face.angle.toFixed(2)),
+          height: round(built.plan.height),
+          length: round(built.plan.length),
+          bridges: built.plan.bridges.map(round),
+          measures: Object.fromEntries(Object.entries(built.plan.measures).map(([key, value]) => [key, round(value)])),
+          settings,
           normal: [normal.x, normal.y, normal.z].map((value) => Number(value.toFixed(4))),
         };
       }
@@ -13122,7 +14260,7 @@ export function LayerlingEditor({
         const wasText = target.kind === "text";
         // A font by name as update_object takes it: a font of one's own becomes its id, a built-in name stays.
         const font = typeof params.font === "string" ? mcpTextFont(params.font) ?? params.font : undefined;
-        const plainSource = { ...stack.source, ...(typeof params.text === "string" ? { text: params.text.slice(0, 24) || " " } : {}), ...(font ? { font } : {}) };
+        const plainSource = { ...stack.source, ...(typeof params.text === "string" ? { text: limitedText(params.text) } : {}), ...(font ? { font } : {}) };
         // Vertical letters (#981) turn the tag upright at the letter size it had.
         const source = typeof params.vertical === "boolean" && !plainSource.textCurved ? nameTagSource(plainSource, { vertical: params.vertical, letterSize: textLetterSize(stack.source) }) : plainSource;
         const requested = params.layers !== undefined ? normalizeTextLayers(params.layers) : null;
@@ -13316,7 +14454,7 @@ export function LayerlingEditor({
         if (typeof clearance !== "number" || !Number.isFinite(clearance) || clearance < 0 || clearance > MAX_SBC_CLEARANCE) throw new Error(`clearance must be 0 to ${MAX_SBC_CLEARANCE} mm`);
         const reach = params.reach ?? 0;
         if (typeof reach !== "number" || !Number.isFinite(reach) || reach < 0 || reach > MAX_SBC_REACH) throw new Error(`reach must be 0 to ${MAX_SBC_REACH} mm`);
-        for (const key of ["ribbonUp", "ribbonSide", "gpioUp"] as const) {
+        for (const key of ["ribbonUp", "ribbonSide", "gpioUp", "lensUp"] as const) {
           if (params[key] !== undefined && typeof params[key] !== "boolean") throw new Error(`${key} must be true or false`);
         }
         const upReach = params.upReach;
@@ -13333,6 +14471,7 @@ export function LayerlingEditor({
           ...(params.ribbonUp === true ? { ribbonUp: true } : {}),
           ...(params.ribbonSide === true ? { ribbonSide: true } : {}),
           ...(params.gpioUp === true ? { gpioUp: true } : {}),
+          ...(params.lensUp === true ? { lensUp: true } : {}),
           ...(typeof upReach === "number" ? { upReach } : {}),
           ...(typeof buttonReach === "number" && buttonReach > 0 ? { buttonReach } : {}),
         }, workspaceSettingsRef.current.booleanTriangleLimit);
@@ -13350,7 +14489,7 @@ export function LayerlingEditor({
       if (command.action === "printer_play") {
         // The printer's play as the settings window keeps it (printerPlay.ts): read, set or forgotten, and the fit test
         // that measures it placed as the window's button places it.
-        for (const key of ["clear", "makeFitTest"] as const) {
+        for (const key of ["clear", "makeFitTest", "pinBase"] as const) {
           if (params[key] !== undefined && typeof params[key] !== "boolean") throw new Error(`${key} must be true or false`);
         }
         if (params.play !== undefined) {
@@ -13362,8 +14501,10 @@ export function LayerlingEditor({
           setPrinterPlay(null);
         }
         let fitTest: Record<string, unknown> | null = null;
+        if (params.pinBase !== undefined && params.makeFitTest !== true) throw new Error("pinBase goes with makeFitTest");
         if (params.makeFitTest === true) {
-          const made = await placeFitTest();
+          // The pin on its breakaway base as asked, or as the settings window's box last had it (breakawayBase.ts).
+          const made = await placeFitTest(params.pinBase === undefined ? undefined : params.pinBase === true);
           if ("error" in made) throw new Error(made.error);
           const placed = made.shape;
           const [plate, pin] = placed.groupedShapes ?? [];
@@ -13372,13 +14513,19 @@ export function LayerlingEditor({
             plateId: plate?.id ?? null,
             pinId: pin?.id ?? null,
             pinDiameter: FIT_TEST_PIN_DIAMETER,
+            pinBase: params.pinBase === undefined ? fitTestPinBaseChosen() : params.pinBase === true,
             holes: fitTestHoles().map(({ clearance, diameter, label }) => ({ clearance, diameter, label })),
           };
         }
         const play = getPrinterPlay();
+        // One play per printer (Discussion #1406): the design's printer, and whether the play is its own.
+        const printerId = printerPlayPrinter();
+        const preset = printerPresetById(printerId);
         return {
           play,
           measured: play !== null,
+          printer: preset ? { id: preset.id, name: `${preset.vendor} ${preset.model}` } : null,
+          playOf: printerPlaySource(printerId) === "printer" ? "printer" : play === null ? null : "noPrinter",
           testedValues: [...FIT_TEST_CLEARANCES],
           settings: PRINTER_PLAY_SETTINGS.map((setting) => ({
             setting: setting.id,
@@ -13386,7 +14533,7 @@ export function LayerlingEditor({
             startsAt: printerPlayStart(setting.id, play),
           })),
           ...(fitTest ? { fitTest } : {}),
-          note: "play is per side in mm, kept in this browser; null means not measured. New uses of the settings with takes perSide start from it, those with total from twice it (startsAt, before each tool holds it within its own field); takes own keeps its built-in start. Shapes already in a design never change.",
+          note: "play is per side in mm, kept in this browser; null means not measured. It is the play of the printer chosen in the design's workspace settings (printer): playOf printer means that printer has a play of its own, noPrinter that it uses the play kept without a printer (setting play then gives the printer its own; clear takes away what is shown). New uses of the settings with takes perSide start from it, those with total from twice it (startsAt, before each tool holds it within its own field); takes own keeps its built-in start. Shapes already in a design never change.",
         };
       }
 
@@ -13460,12 +14607,20 @@ export function LayerlingEditor({
       if (command.action === "hull_objects") {
         const ids = new Set(mcpStringArray(params.ids));
         const groupable = currentShapes().filter((shape) => ids.has(shape.id));
+        if (params.keepHoles !== undefined && typeof params.keepHoles !== "boolean") throw new Error("keepHoles must be true or false");
+        const keepHoles = params.keepHoles === true;
+        // One hull and keepHoles: that hull built again with its parts' holes kept or filled (Discussion #1440).
+        if (groupable.length === 1 && groupable[0].groupOperation === "hull" && typeof params.keepHoles === "boolean") {
+          const changed = await setHullKeepHoles(groupable[0].id, keepHoles);
+          if (!changed.ok) throw new Error(changed.message);
+          return { object: mcpShapeSummary(changed.hull) };
+        }
         if (groupable.some((shape) => shape.locked)) throw new Error("Unlock every selected object before making a hull");
         if (groupable.some((shape) => isNonSolidShape(shape))) throw new Error("A ruler isn't a solid and can't be part of a hull");
         if (!canHullShapes(groupable)) throw new Error("Pass two objects or more to make a hull");
         const sourceFingerprint = projectShapesFingerprint(currentShapes());
         const sourceProjectId = projectInfoRef.current.projectId;
-        const result = await buildHullShapeFromSelection(groupable, workspaceSettingsRef.current.booleanTriangleLimit);
+        const result = await buildHullShapeFromSelection(groupable, workspaceSettingsRef.current.booleanTriangleLimit, { keepHoles });
         if (projectInfoRef.current.projectId !== sourceProjectId || projectShapesFingerprint(currentShapes()) !== sourceFingerprint) {
           throw new Error("The scene changed while making the hull; run the command again");
         }
@@ -13497,8 +14652,22 @@ export function LayerlingEditor({
 
       if (command.action === "make_lid") {
         const ids = new Set(mcpStringArray(params.ids));
-        const targets = currentShapes().filter((shape) => ids.has(shape.id));
+        let targets = currentShapes().filter((shape) => ids.has(shape.id));
         if (!targets.length) throw new Error("Pass the ids of the body to make a lid for");
+        // fitNeck (issue #1482): a body whose top is not a standard's neck is fitted to it first, as the panel's button does.
+        let fittedToNeck: number | null = null;
+        if (params.fitNeck === true) {
+          const { type, threadStandard } = normalizeLidOptions({ type: params.type, threadStandard: params.threadStandard });
+          if (type !== "screw" || threadStandard === "own") throw new Error("fitNeck goes with type screw and a threadStandard other than own");
+          const measured = await lidTopOffThread(targets);
+          if (!measured || lidNeckFit(threadStandard, measured.round)) {
+            if (targets.length !== 1) throw new Error(t("lid.error.neckFitShape"));
+            const fit = await fitBodyToNeck(targets[0], threadStandard);
+            if (!fit.ok) throw new Error(fit.message);
+            fittedToNeck = fit.diameter;
+            targets = currentShapes().filter((shape) => ids.has(shape.id));
+          }
+        }
         const result = await makeLid({
           type: params.type,
           thickness: params.thickness,
@@ -13518,19 +14687,50 @@ export function LayerlingEditor({
           hingeSide: params.hingeSide,
           hingeTeardrop: params.hingeTeardrop,
           hingeStyle: params.hingeStyle,
+          hingeEndPlugs: params.hingeEndPlugs,
           clickBumps: params.clickBumps,
           clickBumpHeight: params.clickBumpHeight,
           handle: params.handle,
+          threadPitch: params.threadPitch,
+          threadTurns: params.threadTurns,
+          threadStandard: params.threadStandard,
+          bayonetLugs: params.bayonetLugs,
+          bayonetDepth: params.bayonetDepth,
+          bayonetAxialGap: params.bayonetAxialGap,
+          bayonetDetent: params.bayonetDetent,
+          slideSide: params.slideSide,
+          slideFrame: params.slideFrame,
+          bayonetTurn: params.bayonetTurn,
+          tether: params.tether,
+          flipTop: params.flipTop,
+          flipTopOpening: params.flipTopOpening,
+          topEdge: params.topEdge,
+          topEdgeSize: params.topEdgeSize,
         }, targets);
-        if (!result.ok) throw new Error(result.message);
+        if (!result.ok) throw new Error(fittedToNeck !== null ? `${result.message} (The body was fitted to the neck first, ${fittedToNeck} mm across; undo takes that back.)` : result.message);
         const made = currentShapes().find((shape) => shape.id === result.id);
-        if (!("bodyId" in result)) return { object: made ? mcpShapeSummary(made) : { id: result.id }, type: result.type, ...(result.handle !== "none" ? { handle: result.handle } : {}) };
+        const fitted = fittedToNeck !== null ? { fittedToNeck } : {};
+        if (!("bodyId" in result)) return { object: made ? mcpShapeSummary(made) : { id: result.id }, type: result.type, ...(result.handle !== "none" ? { handle: result.handle } : {}), ...("screw" in result && result.screw ? { screw: result.screw } : {}), ...fitted };
         const body = currentShapes().find((shape) => shape.id === result.bodyId);
         const pin = "hinge" in result && result.hinge?.pinId ? currentShapes().find((shape) => shape.id === result.hinge!.pinId) : null;
+        const plugs = "hinge" in result && result.hinge?.plugsId ? currentShapes().find((shape) => shape.id === result.hinge!.plugsId) : null;
+        const tether = "tether" in result && result.tether ? currentShapes().find((shape) => shape.id === result.tether!.partId) : null;
         return {
           object: made ? mcpShapeSummary(made) : { id: result.id }, type: result.type, body: body ? mcpShapeSummary(body) : { id: result.bodyId }, magnets: result.magnets, posts: result.posts,
           ...(result.clickBumps ? { clickBumps: result.clickBumps } : {}), ...(result.handle !== "none" ? { handle: result.handle } : {}),
-          ...("hinge" in result && result.hinge ? { hinge: { knuckles: result.hinge.knuckles, pins: result.hinge.pins, pinDiameter: result.hinge.pinDiameter, side: result.hinge.side, style: result.hinge.style, pin: pin ? mcpShapeSummary(pin) : null } } : {}),
+          ...("hinge" in result && result.hinge ? { hinge: {
+            knuckles: result.hinge.knuckles, pins: result.hinge.pins, pinDiameter: result.hinge.pinDiameter, side: result.hinge.side, style: result.hinge.style, pin: pin ? mcpShapeSummary(pin) : null,
+            ...(result.hinge.plugsId ? { endPlugs: plugs ? mcpShapeSummary(plugs) : { id: result.hinge.plugsId } } : {}),
+            ...(result.hinge.pinLength !== null ? { pinLength: Math.round(result.hinge.pinLength * 100) / 100 } : {}),
+          } } : {}),
+          ...("screw" in result && result.screw ? { screw: result.screw } : {}),
+          ...("bayonet" in result && result.bayonet ? { bayonet: result.bayonet } : {}),
+          ...("slide" in result && result.slide ? { slide: result.slide } : {}),
+          ...("tether" in result && result.tether ? { tether: {
+            part: tether ? mcpShapeSummary(tether) : { id: result.tether.partId }, strapLength: result.tether.strap, neckRing: result.tether.neckRing, capRing: result.tether.capRing,
+          } } : {}),
+          ...("flipTop" in result && result.flipTop ? { flipTop: result.flipTop } : {}),
+          ...fitted,
         };
       }
 
@@ -13676,9 +14876,11 @@ export function LayerlingEditor({
           if (params[key] !== undefined && !allowed.includes(String(params[key]))) throw new Error(`${key} must be one of ${allowed.join(", ")}`);
         });
         Object.keys(SURFACE_TEXTURE_LIMITS).forEach((key) => {
+          // The grain was only on or off once: true and false are still taken (see normalizeSurfaceTexture).
+          if (key === "timberGrain" && typeof params[key] === "boolean") return;
           if (params[key] !== undefined && !Number.isFinite(mcpNumber(params[key], Number.NaN))) throw new Error(`${key} must be a number`);
         });
-        ["keepEdges", "outside", "inside", "crackGold", "imageInvert", "tileFromBottom", "timberGrain", "patternPart"].forEach((key) => {
+        ["keepEdges", "outside", "inside", "crackGold", "imageInvert", "tileFromBottom", "patternPart"].forEach((key) => {
           if (params[key] !== undefined && typeof params[key] !== "boolean") throw new Error(`${key} must be true or false`);
         });
         if (params.patternColor !== undefined && !(typeof params.patternColor === "string" && /^#[0-9a-f]{6}$/i.test(params.patternColor))) throw new Error("patternColor must be a colour as #rrggbb");
@@ -13865,21 +15067,36 @@ export function LayerlingEditor({
         if (alongWorkplane && (params.axis !== undefined || params.rotationX !== undefined || params.rotationY !== undefined || params.rotationZ !== undefined)) {
           throw new Error("alongWorkplane sets the axis and the tilt itself - leave out axis and rotationX/Y/Z");
         }
-        // Dowels or plugs through the cut face, as the panel's Connectors (Discussion #832); a setting left out starts as it does there.
+        // Dowels, plugs or a dovetail through the cut face, as the panel's Connectors (Discussion #832); a setting left out starts as it does there.
         const connectorKind = params.connectors === undefined ? "none" : mcpString(params.connectors, "").trim().toLowerCase();
-        if (!(SPLIT_CONNECTOR_KINDS as readonly string[]).includes(connectorKind)) throw new Error("connectors must be none, dowels or plugs");
-        const connectorFields = ["connectorCount", "connectorDiameter", "connectorDepth", "connectorClearance"] as const;
+        if (!(SPLIT_CONNECTOR_KINDS as readonly string[]).includes(connectorKind)) throw new Error("connectors must be none, dowels, plugs or dovetail");
+        const roundFields = ["connectorDiameter", "connectorDepth"] as const;
+        const dovetailFields = ["dovetailWidth", "dovetailDepth", "dovetailAngle", "dovetailDirection"] as const;
+        const connectorFields = ["connectorCount", "connectorClearance", ...roundFields, ...dovetailFields] as const;
         const badConnectorField = connectorFields.find((field) => params[field] !== undefined && !(typeof params[field] === "number" && Number.isFinite(params[field])));
         if (badConnectorField) throw new Error(`${badConnectorField} must be a number`);
         if (connectorKind === "none" && connectorFields.some((field) => params[field] !== undefined)) {
-          throw new Error("connectorCount, connectorDiameter, connectorDepth and connectorClearance go with connectors dowels or plugs");
+          throw new Error("connectorCount, connectorClearance and the connectors' measures go with connectors dowels, plugs or dovetail");
         }
+        if (connectorKind === "dovetail" && roundFields.some((field) => params[field] !== undefined)) {
+          throw new Error("connectorDiameter and connectorDepth go with dowels or plugs - a dovetail takes dovetailWidth and dovetailDepth");
+        }
+        if (connectorKind !== "dovetail" && dovetailFields.some((field) => params[field] !== undefined)) {
+          throw new Error("dovetailWidth, dovetailDepth, dovetailAngle and dovetailDirection go with connectors dovetail");
+        }
+        if (params.dowelBase !== undefined && typeof params.dowelBase !== "boolean") throw new Error("dowelBase must be true or false");
+        if (params.dowelBase !== undefined && connectorKind !== "dowels") throw new Error("dowelBase goes with connectors dowels");
         const connectors = normalizeSplitConnectorOptions({
+          dowelBase: params.dowelBase,
           kind: connectorKind,
           count: params.connectorCount,
           diameter: params.connectorDiameter,
           depth: params.connectorDepth,
           clearance: params.connectorClearance,
+          dovetailWidth: params.dovetailWidth,
+          dovetailDepth: params.dovetailDepth,
+          dovetailAngle: params.dovetailAngle,
+          dovetailTurn: params.dovetailDirection,
         }, splitConnectorDefaults(getPrinterPlay()));
         const workplane = placementWorkplaneRef.current;
         const workplaneDirection = alongWorkplane === "parallel" ? workplane.normal : alongWorkplane === "acrossX" ? workplane.xAxis : alongWorkplane === "acrossY" ? workplane.zAxis : null;
@@ -13938,8 +15155,10 @@ export function LayerlingEditor({
             connectors: {
               kind: connectors.kind,
               count: connectors.count,
-              diameter: connectors.diameter,
-              depth: connectors.depth,
+              ...(connectors.kind === "dovetail"
+                ? { width: connectors.dovetailWidth, depth: connectors.dovetailDepth, angle: connectors.dovetailAngle, direction: connectors.dovetailTurn }
+                : { diameter: connectors.diameter, depth: connectors.depth }),
+              ...(connectors.kind === "dowels" ? { dowelBase: connectors.dowelBase } : {}),
               clearance: connectors.clearance,
               ...(outcome.connectors ?? { placed: 0, faces: 0, tooSmall: 0, tooThin: 0 }),
             },
@@ -14857,11 +16076,13 @@ export function LayerlingEditor({
           for (let index = 0; index < svgBytes.length; index += 8192) svgBinary += String.fromCharCode(...svgBytes.subarray(index, index + 8192));
           return { format, view: svgView, fileName: projectExportFileName(projectName, "svg"), bytes: svgBytes.length, ...(outlines === undefined ? {} : { outlines }), ...(fellBack ? { fellBack } : {}), base64: btoa(svgBinary) };
         }
-        const { solids: cutSolids, meshes, cut: wasCut, holeCutsFailed } = await exportBodiesWithLooseHoles(visible);
+        const { solids: cutSolids, meshes, cut: wasCut, holeCutsFailed } = await exportBodiesWithLooseHoles(visible, { painted: format !== "stl" });
         const joined = await (format === "stl" ? unionOverlappingExportMeshes(cutSolids, meshes, wasCut) : colorSeparatedExportMeshes(cutSolids, meshes, wasCut));
-        // A group showing its parts in their own colours keeps them in 3MF and OBJ (#153).
+        // A group showing its parts in their own colours keeps them in 3MF and OBJ (#153), a painted body its paint.
         const partFaceColors = (mesh: MeshData, sourceIndex: number) => {
           const source = cutSolids[sourceIndex];
+          const painted = paintedExportFaceColors(mesh, source);
+          if (painted) return painted;
           const solids = source ? multicolorExportSolids(source) : null;
           if (!source || !solids) return undefined;
           const colors = exportFaceColors(mesh, solids, source.color);
@@ -15014,6 +16235,7 @@ export function LayerlingEditor({
     beginSketch,
     sketchActive,
     rebuildSketchBodyFill,
+    revolvedShapeWithSettings,
     applyCustomFontToSelection,
     addReferencePoints,
     commitNotes,
@@ -15044,6 +16266,9 @@ export function LayerlingEditor({
     updateProjectAttachments,
     layOutVaseAccessories,
     makeSwallowtailKeys,
+    invertSelection,
+    hideOthers,
+    fitBodyToNeck,
   ]);
 
   useEffect(() => {
@@ -15393,11 +16618,14 @@ export function LayerlingEditor({
     return { shapes: hasSelection ? selectedShapes : shapes, selection: hasSelection };
   }, [buildPlates.count, buildPlates.exportPlate, hasSelection, selectedShapes, shapes]);
 
-  /** `chooseFile` asks for a new STL even when the design already has one (Save as). `svgView` picks what an SVG shows (#692). */
+  /**
+   * `chooseFile` asks for a new STL even when the design already has one (Save as); "download" skips the save dialog
+   * for this one export (the Download instead button, Discussion #1449). `svgView` picks what an SVG shows (#692).
+   */
   const exportDesign = useCallback(async (
     format: DirectExportFormat,
     exportName: string,
-    chooseFile = false,
+    chooseFile: boolean | "download" = false,
     svgView: SvgExportView = "silhouette",
     toServer = false,
     bridges: StencilBridgeOptions | null = null,
@@ -15524,9 +16752,11 @@ export function LayerlingEditor({
     const label = format === "stl" ? "STL" : format === "3mf" ? "3MF" : "OBJ";
     // Loose holes cut the bodies they reach first (#203); a body cut away entirely drops out.
     let bodiesWritten: WorkplaneShape[] = exportable;
-    // A group showing its parts in their own colours keeps them in 3MF and OBJ (#153).
+    // A group showing its parts in their own colours keeps them in 3MF and OBJ (#153), a painted body its paint.
     const partFaceColors = (mesh: MeshData, sourceIndex: number) => {
       const source = bodiesWritten[sourceIndex];
+      const painted = paintedExportFaceColors(mesh, source);
+      if (painted) return painted;
       const solids = source ? multicolorExportSolids(source) : null;
       if (!source || !solids) return undefined;
       const colors = exportFaceColors(mesh, solids, source.color);
@@ -15543,18 +16773,25 @@ export function LayerlingEditor({
     const designId = projectId ?? "";
     let target: LylFileHandle | "download" = "download";
     // With "Save STL as a download" the browser hands out the files, and numbers them (#731).
-    if (format === "stl" && !toServer && !plateRun && lylFileAccessSupported() && !workspaceSettingsRef.current.stlAsDownload) {
+    if (format === "stl" && !toServer && !plateRun && chooseFile !== "download" && lylFileAccessSupported() && !workspaceSettingsRef.current.stlAsDownload) {
       try {
         const linkedBefore = linkedStlFile(designId);
         // A name typed in the window that is not the linked file's asks for a file of its own (reported by mail, 15.10.2026).
-        const linked = chooseFile || stlNameAsksForNewFile(exportName, projectName, linkedBefore?.name) ? null : linkedBefore;
+        const linked = chooseFile === true || stlNameAsksForNewFile(exportName, projectName, linkedBefore?.name) ? null : linkedBefore;
         if (linked && !(await ensureLylFileWritable(linked))) {
           setNotice(t("status.fileNotWritable", { name: linked.name }), true);
           return;
         }
         const picked = linked ?? await pickStlFileToSave(projectExportFileName(exportName, "stl"));
-        // Closed without a choice: nothing to do.
-        if (!picked) return;
+        // Closed without a choice: nothing is written, and the status line says so. The browser reports a folder it
+        // would not hand over the same way, and on some PCs that is every folder: a download still works (Discussion #1449).
+        if (!picked) {
+          setNotice(t("status.saveNothingChosen"), true, {
+            label: t("status.saveAsDownload"),
+            run: () => void exportDesignRef.current?.("stl", exportName, "download", svgView, toServer, bridges),
+          });
+          return;
+        }
         target = picked;
       } catch {
         target = "download";
@@ -15562,7 +16799,7 @@ export function LayerlingEditor({
     }
     const savedFile = target === "download" ? null : target;
     // Awaited, so "One file per plate" (#456) writes the plates one after the other.
-    await exportBodiesWithLooseHoles(sourceShapes)
+    await exportBodiesWithLooseHoles(sourceShapes, { painted: format !== "stl" })
       .then(async ({ solids: cutSolids, meshes, cut: wasCut, holeCutsFailed }) => {
         bodiesWritten = cutSolids;
         const joined = await (format === "stl" ? unionOverlappingExportMeshes(cutSolids, meshes, wasCut) : colorSeparatedExportMeshes(cutSolids, meshes, wasCut));
@@ -15711,7 +16948,8 @@ export function LayerlingEditor({
     let fileHandle: LylFileHandle | null = null;
     let pickedNewFile = false;
     if (target === "file" || target === "fileAs") {
-      if (!lylFileAccessSupported()) {
+      // "Save designs as a download" skips the save dialog every time (Discussion #1449).
+      if (!lylFileAccessSupported() || workspaceSettingsRef.current.lylAsDownload) {
         target = "download";
       } else {
         try {
@@ -15724,8 +16962,17 @@ export function LayerlingEditor({
             fileHandle = await pickLylFileToSave(projectExportFileName(exportName, "lyl"));
             pickedNewFile = true;
           }
-          // Closed without a choice: nothing to do.
-          if (!fileHandle) return;
+          // Closed without a choice: nothing is written, and the status line says so (a browser also reports a
+          // dialog it could not use as closed; staying silent left people wondering where the file went).
+          // The browser cannot tell a closed dialog from a file it would not hand over, and on some PCs the
+          // dialog fails for every folder: a normal download still works there (Discussion #1449).
+          if (!fileHandle) {
+            setNotice(t("status.saveNothingChosen"), true, {
+              label: t("status.saveAsDownload"),
+              run: () => void exportLylDesign(exportName, historyLimit, "download"),
+            });
+            return;
+          }
         } catch {
           // No dialog here (a frame, a policy): the download still works.
           fileHandle = null;
@@ -16163,18 +17410,21 @@ export function LayerlingEditor({
         if (!svgSketchMatchesMesh(built, mesh)) return null;
         return canonicalizeShape({ ...built, name: mesh.name, color: mesh.color, x: mesh.x, z: mesh.z });
       },
+      // A STEP file can keep the kernel busy for minutes: its message stays until the import ends (#286).
       onProgress: (index, total, file, isStep) => setNotice(t("status.importingFile", {
         index: index + 1,
         total,
         name: file.name,
-        stepNote: isStep ? t("status.stepKernelNote") : "",
-      }), true),
+        stepNote: isStep ? `${t("status.stepKernelNote")} ${t("status.stepImportPatience")}` : "",
+      }), isStep ? "stay" : true),
     });
     if (!result) {
       setNotice(t("status.importCancelled", { count: selected.length }));
       return none;
     }
-    const { shapes: importedShapes, assets: importedAssets, files, failures, notes } = result;
+    const { assets: importedAssets, files, failures, notes } = result;
+    // Read in around the first plate's middle: onto the plate you are on (#1514).
+    const importedShapes = ontoActivePlate(result.shapes);
     if (result.mtlOnly) {
       setNotice(t("status.importMtlAlone"), true);
       return { importedIds: [], failures };
@@ -16182,9 +17432,10 @@ export function LayerlingEditor({
     const failureSummary = importFailureSummary(failures);
 
     if (!importedShapes.length) {
+      // Nothing came in: the reason stays until it is closed, so it is still there for whoever looked away during a long import (#286).
       setNotice(failures.length === 1 && files.length <= 1
         ? importFailureReason(failures[0])
-        : t("status.importNoneFailed", { total: Math.max(files.length, failures.length), summary: failureSummary }), true);
+        : t("status.importNoneFailed", { total: Math.max(files.length, failures.length), summary: failureSummary }), "stay");
       return { importedIds: [], failures };
     }
 
@@ -16201,7 +17452,7 @@ export function LayerlingEditor({
     );
     setTopPanel(null);
     return { importedIds: importedShapes.map((shape) => shape.id), failures };
-  }, [commitShapes, onOpenLylProjectFile]);
+  }, [commitShapes, onOpenLylProjectFile, ontoActivePlate]);
   importFilesRef.current = importFiles;
 
   const selectFiles = useCallback(
@@ -16531,10 +17782,26 @@ export function LayerlingEditor({
           setNotice(t("status.holePatternCancelled"));
           return;
         }
+        if (paintTool) {
+          setPaintTool(null);
+          setNotice(t("status.paintClosed"));
+          return;
+        }
         if (faceTool) {
           faceToolPickRunRef.current += 1;
           setFaceTool(null);
           setNotice(t("status.faceToolCancelled"));
+          return;
+        }
+        if (supportRibTool) {
+          supportRibPickRunRef.current += 1;
+          setSupportRibTool(null);
+          setNotice(t("status.supportRibCancelled"));
+          return;
+        }
+        if (stencilBridgeTool) {
+          setStencilBridgeTool(null);
+          setNotice(t("status.stencilBridgesCancelled"));
           return;
         }
         if (deleteFaceTool) {
@@ -16733,10 +18000,11 @@ export function LayerlingEditor({
       } else if (event.key === "ArrowDown") {
         event.preventDefault();
         nudge(0, step, 0);
-      } else if (key === "d" && hasSelection) {
+      } else if ((key === "d" || (event.altKey && event.code === "KeyD")) && hasSelection) {
         event.preventDefault();
-        // Shift+D drops the top of the selection to the workplane, the body below it (#940).
-        dropSelectedToWorkplane({ shift: event.shiftKey });
+        // Shift+D drops the top of the selection to the workplane, the body below it (#940); with Alt the selection
+        // drops as one piece (#1509). The key code catches Alt+D on a Mac, where Option turns the key into another letter.
+        dropSelectedToWorkplane({ shift: event.shiftKey, together: event.altKey });
       } else if (key === "h") {
         event.preventDefault();
         setSelectionHoleMode(true);
@@ -16839,6 +18107,8 @@ export function LayerlingEditor({
     mateTool,
     holePatternTool,
     faceTool,
+    supportRibTool,
+    stencilBridgeTool,
     deleteFaceTool,
     applyDeleteFaceTool,
     surfaceFacePick,
@@ -16960,6 +18230,8 @@ export function LayerlingEditor({
       const items: ShapeContextMenuItem[] = [
         { key: "paste", label: t("contextMenu.paste"), shortcut: "Ctrl+V", onSelect: () => void pasteShape() },
         { key: "selectAll", label: t("contextMenu.selectAll"), shortcut: "Ctrl+A", onSelect: selectAllVisible },
+        // With parts selected and the menu opened beside them (Discussion #1472).
+        ...(hasSelection ? [{ key: "invertSelection", label: t("contextMenu.invertSelection"), onSelect: () => { invertSelection(); } }] : []),
         { key: "selectMultiple", label: t("contextMenu.selectMultiple"), onSelect: startMultiSelect },
         ...selectOther,
       ];
@@ -16977,6 +18249,7 @@ export function LayerlingEditor({
     const items: ShapeContextMenuItem[] = [
       { key: "duplicate", label: t("common.duplicate"), shortcut: "Ctrl+D", onSelect: duplicateSelected },
       { key: "copy", label: t("editor.tool.copy"), shortcut: "Ctrl+C", onSelect: copySelected },
+      { key: "invertSelection", label: t("contextMenu.invertSelection"), onSelect: () => { invertSelection(); } },
       { key: "selectMultiple", label: t("contextMenu.selectMultiple"), onSelect: startMultiSelect },
       ...selectOther,
     ];
@@ -17003,7 +18276,12 @@ export function LayerlingEditor({
       if (!single.hole && !isNonSolidShape(single)) {
         items.push({ key: "holePattern", label: t("holePattern.title"), onSelect: toggleHolePattern });
         items.push({ key: "faceTool", label: t("faceTool.title"), onSelect: toggleFaceTool });
+        items.push({ key: "supportRib", label: t("supportRib.title"), onSelect: toggleSupportRib });
       }
+    }
+    // A plate with text cut through, grouped or with the text beside it as a hole (Discussion #1438).
+    if (!bodyHeld && selectedShapes.some((shape) => !shape.hole) && selectedShapes.every((shape) => !isNonSolidShape(shape))) {
+      items.push({ key: "stencilBridges", label: t("stencilBridges.title"), onSelect: toggleStencilBridges });
     }
     // Align from the menu at the pointer (Discussion #1275): with two or more parts, as the L key; locked parts stay put as there.
     const canAlign = selectedShapes.length >= 2 && !allLocked;
@@ -17029,6 +18307,7 @@ export function LayerlingEditor({
     }
     items.push(
       { key: "hide", label: t("contextMenu.hide"), shortcut: "Ctrl+H", separated: true, onSelect: toggleHidden },
+      { key: "hideOthers", label: t("contextMenu.hideOthers"), onSelect: () => { hideOthers(); } },
       { key: "lock", label: t(allLocked ? "contextMenu.unlock" : "contextMenu.lock"), shortcut: "Ctrl+L", onSelect: toggleLocked },
       ...(selectionLocked ? [] : [{ key: "lockShape", label: t(allShapeLocked ? "contextMenu.unlockShape" : "contextMenu.lockShape"), shortcut: "Ctrl+Shift+L", onSelect: toggleShapeLocked }]),
       ...(selectionLocked ? [] : [{ key: "carry", label: t("contextMenu.carry"), shortcut: "C", onSelect: startCarry }]),
@@ -17149,6 +18428,11 @@ export function LayerlingEditor({
         canHolePattern={selectedShapes.length === 1 && Boolean(selectedShape && !bodyLocked(selectedShape) && !selectedShape.hole && !isNonSolidShape(selectedShape))}
         onFaceTool={toggleFaceTool}
         faceToolActive={Boolean(faceTool)}
+        onSupportRib={toggleSupportRib}
+        supportRibActive={Boolean(supportRibTool)}
+        onStencilBridges={toggleStencilBridges}
+        stencilBridgesActive={Boolean(stencilBridgeTool)}
+        canStencilBridges={selectedShapes.length > 0 && selectedShapes.every((shape) => !bodyLocked(shape) && !isNonSolidShape(shape)) && selectedShapes.some((shape) => !shape.hole)}
         canFaceTool={selectedShapes.length === 1 && Boolean(selectedShape && !bodyLocked(selectedShape) && !selectedShape.hole && !isNonSolidShape(selectedShape))}
         onGroup={groupSelected}
         onBundle={bundleSelected}
@@ -17185,6 +18469,9 @@ export function LayerlingEditor({
         canSurfaceTexture={canSurfaceTexture}
         onSurfaceTextureTool={toggleSurfaceTextureTool}
         surfaceTextureActive={canSurfaceTexture && surfaceTextureOpen}
+        canPaint={!selectionLocked && selectedShapes.length === 1 && canPaintShape(selectedShapes[0])}
+        onPaint={togglePaint}
+        paintActive={Boolean(paintTool)}
         onMirror={toggleMirrorMode}
         onRotationPivot={toggleRotationPivot}
         onArray={toggleArrayTool}
@@ -17198,6 +18485,8 @@ export function LayerlingEditor({
         onRedo={redo}
         onSnap={snapSelected}
         onShowHidden={showHidden}
+        onHideOthers={() => { hideOthers(); }}
+        onInvertSelection={() => { invertSelection(); }}
         onToggleHidden={toggleHidden}
         onUngroup={ungroupSelected}
         onUndo={undo}
@@ -17219,8 +18508,14 @@ export function LayerlingEditor({
         }}
         objects={shapes.map((shape) => ({ id: shape.id, name: displayShapeName(shape), kind: shape.kind, hidden: Boolean(shape.hidden) }))}
         onSelectObject={(id) => selectShape(id)}
-        renderMyShapes={(close) => (
+        customShapeEntries={customShapeEntries}
+        onInsertCustomShape={insertCustomShapeAndCarry}
+        onNotice={(text) => setNotice(text)}
+        splitActive={Boolean(splitSession)}
+        countMyShapeMatches={(query) => searchCustomShapes(customShapeEntries, query).length}
+        renderMyShapes={(close, query) => (
           <MyShapesSection
+            searchQuery={query}
             shapes={customShapeEntries}
             folders={customShapeFolders}
             serverAvailable={customShapesServerAvailable}
@@ -17228,14 +18523,7 @@ export function LayerlingEditor({
             defaultName={selectedShapes.length === 1 ? displayShapeName(selectedShapes[0]) : t("myShapes.defaultName")}
             onInsert={(id) => {
               close();
-              void insertMyShape(id).then((inserted) => {
-                // Like the shapes of the library, it hangs on the pointer and sits down where you click, also on a
-                // face (#463). Without "click to place" it stays where it was put.
-                if (!workspaceSettingsRef.current.clickToPlaceShapes || inserted.length === 0) return;
-                setCruiseAsset(null);
-                setCarryIds(inserted.map((shape) => shape.id));
-                setNotice(t("status.carryPlace"));
-              }).catch(noticeError);
+              insertCustomShapeAndCarry(id);
             }}
             onSave={async (name, location, folderId) => {
               try {
@@ -17458,6 +18746,7 @@ export function LayerlingEditor({
           onCancelInteraction={cancelInteraction}
           onEditSketch={beginSketchEdit}
           onOpenGroup={selectedShapes.length === 1 && canEditGroup(selectedShape) ? openGroupForEditing : undefined}
+          onHullKeepHolesChange={(id, keepHoles) => void setHullKeepHoles(id, keepHoles)}
           canSeparateParts={canSeparateSelectedParts || selectedIsSingleBundle}
           onSeparateParts={selectedIsSingleBundle ? ungroupSelected : separateSelectedParts}
           onSelectionHole={setSelectionHoleMode}
@@ -17505,14 +18794,32 @@ export function LayerlingEditor({
           onImageCalibrationPoint={addImageCalibrationPoint}
           layFlatPickMode={layFlatPickMode || Boolean(cableTool?.picking)}
           onLayFlatPick={cableTool?.picking ? pickCableEnd : layFlatOnFace}
-          mateFacePick={mateTool && mateTool.step !== "ready"
+          mateFacePick={mateTool && mateTool.mode !== "point" && mateTool.step !== "ready"
             ? { shapeIds: mateTool.step === "source" ? [mateTool.sourceId] : shapes.filter((shape) => shape.id !== mateTool.sourceId && !shape.hidden).map((shape) => shape.id), round: mateTool.mode === "concentric" }
             : holePatternTool?.step === "pick"
               ? { shapeIds: [holePatternTool.sourceId], joined: faceJoinPositions, round: "either" }
               : faceTool?.step === "pick"
                 ? { shapeIds: [faceTool.sourceId], joined: faceJoinPositions }
-                : null}
-          onMateFacePick={mateTool ? pickMateFace : faceTool ? (pick) => void pickFaceToolFace(pick) : (pick) => void pickHolePatternFace(pick)}
+                : supportRibTool?.step === "pick"
+                  ? { shapeIds: [supportRibTool.sourceId], joined: faceJoinPositions }
+                  : null}
+          matePointPick={mateTool?.mode === "point"
+            ? {
+                shapeIds: mateTool.step === "source" ? [mateTool.sourceId] : shapes.filter((shape) => shape.id !== mateTool.sourceId && !shape.hidden).map((shape) => shape.id),
+                picking: mateTool.step !== "ready",
+                marks: [
+                  ...(mateTool.pivot ? [{ ...mateTool.pivot, role: "pivot" as const }] : []),
+                  ...(mateTool.axisPoint ? [{ ...mateTool.axisPoint, role: "pivot" as const }] : []),
+                  ...(mateTool.sourcePoint ? [{ ...mateTool.sourcePoint.point, role: "source" as const }] : []),
+                  ...(mateTool.targetPoint ? [{ ...mateTool.targetPoint.point, role: "target" as const }] : []),
+                ],
+              }
+            : null}
+          onMatePointPick={pickMatePoint}
+          onMateFacePick={mateTool ? pickMateFace : faceTool ? (pick) => void pickFaceToolFace(pick) : supportRibTool ? (pick) => void pickSupportRibFace(pick) : (pick) => void pickHolePatternFace(pick)}
+          paintPick={paintTool && !historyViewState ? { shapeId: paintTool.sourceId, mode: paintTool.settings.mode } : null}
+          onPaintPick={paintAtPick}
+          onPaintLasso={paintLasso}
           cadFacePick={historyViewState ? null : cadFacePick}
           onCadFacePick={deleteFaceTool ? toggleDeleteFace : toggleSurfaceFace}
           onNoteAdd={addNote}
@@ -17741,6 +19048,63 @@ export function LayerlingEditor({
           }}
         />
       ) : null}
+      {paintTool && selectedShape?.id === paintTool.sourceId ? (
+        <PaintPanel
+          targetName={displayShapeName(selectedShape)}
+          settings={paintTool.settings}
+          colors={paintPalette}
+          strokes={selectedShape.paint?.length ?? 0}
+          wholeFaces={Boolean(loadedManifoldRuntime() && selectedShape.paint?.some((stroke) => stroke.mode !== "fill") && paintedBodyMesh(selectedShape)?.cut === false)}
+          workspace={workspaceSettings}
+          onChange={changePaintSettings}
+          onClear={clearPaint}
+          onClose={() => {
+            setPaintTool(null);
+            setNotice(t("status.paintClosed"));
+          }}
+        />
+      ) : null}
+      {supportRibTool && selectedShape?.id === supportRibTool.sourceId ? (
+        <SupportRibPanel
+          targetName={displayShapeName(selectedShape)}
+          step={supportRibTool.step}
+          settings={supportRibTool.settings}
+          workspace={workspaceSettings}
+          face={supportRibTool.face}
+          plan={supportRibPreview?.plan ?? null}
+          problem={supportRibPreview?.problem ?? null}
+          busy={supportRibTool.busy}
+          onChange={changeSupportRibSettings}
+          onRepick={() => {
+            supportRibPickRunRef.current += 1;
+            setSupportRibTool({ ...supportRibTool, step: "pick", face: null });
+            setNotice(t("status.supportRibStart"));
+          }}
+          onApply={() => void applySupportRib()}
+          onCancel={() => {
+            supportRibPickRunRef.current += 1;
+            setSupportRibTool(null);
+            setNotice(t("status.supportRibCancelled"));
+          }}
+        />
+      ) : null}
+      {stencilBridgeTool && selectedShape ? (
+        <StencilBridgePanel
+          targetName={stencilBridgeTool.sourceIds.length === 1 ? displayShapeName(selectedShape) : t("stencilBridges.selection", { count: stencilBridgeTool.sourceIds.length })}
+          settings={stencilBridgeTool.settings}
+          workspace={workspaceSettings}
+          plan={stencilBridgePreview?.plan ?? null}
+          bridgeCount={stencilBridgePreview?.bridges.length ?? 0}
+          replaced={stencilBridgePreview?.replaced ?? 0}
+          busy={stencilBridgeTool.busy}
+          onChange={changeStencilBridgeSettings}
+          onApply={() => void applyStencilBridges()}
+          onCancel={() => {
+            setStencilBridgeTool(null);
+            setNotice(t("status.stencilBridgesCancelled"));
+          }}
+        />
+      ) : null}
       {faceTool && selectedShape?.id === faceTool.sourceId ? (
         <FaceToolPanel
           targetName={displayShapeName(selectedShape)}
@@ -17770,9 +19134,12 @@ export function LayerlingEditor({
           step={mateTool.step}
           mode={mateTool.mode}
           gap={mateTool.gap}
+          axes={mateTool.axes}
+          pair={mateTool.mode === "point" ? mateTool.pair : 1}
           workspace={workspaceSettings}
           onModeChange={(mode) => setMateTool((current) => (current ? mateToolWithMode(current, mode) : current))}
           onGapChange={(gap) => setMateTool((current) => (current ? { ...current, gap } : current))}
+          onAxesChange={(axes) => setMateTool((current) => (current ? { ...current, axes } : current))}
           onApply={applyMateFaces}
           onCancel={() => {
             setMateTool(null);
@@ -17827,6 +19194,12 @@ export function LayerlingEditor({
           onChange={(patch) => setLidTool((current) => current ? { ...current, ...patch, error: null } : current)}
           onApply={applyLidTool}
           onCancel={() => setLidTool(null)}
+          neck={lidNeckTop && lidTool.type === "screw" && lidTool.threadStandard !== "own" ? {
+            top: lidNeckTop.top,
+            fit: lidNeckTargets.length === 1 ? lidNeckFitPatch(lidNeckTargets[0], lidTool.threadStandard)?.width ?? null : null,
+            fitting: lidNeckFitting,
+            onFit: fitLidNeck,
+          } : null}
         />
       ) : null}
       {cableTool ? (
@@ -17913,7 +19286,7 @@ export function LayerlingEditor({
           workspace={workspaceSettings}
           busy={shellTool.busy}
           error={shellTool.error}
-          roundedEdgesHint={selectedShape.kind === "roundedBox" && (selectedShape.topBottomFillet ?? 0) > 0}
+          roundedEdgesHint={selectedShape.kind === "roundedBox" && ((selectedShape.topBottomFillet ?? 0) > 0 || (selectedShape.bottomFillet ?? 0) > 0)}
           appliedFeatureCount={selectedEdgeFeatureCount}
           reversibleFeatureCount={selectedReversibleEdgeFeatureCount}
           historyOptions={selectedEdgeHistoryOptions}

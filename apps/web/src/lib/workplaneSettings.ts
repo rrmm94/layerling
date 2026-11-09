@@ -3,6 +3,7 @@ import type { CustomSnapGrid, CustomSnapGridSize, GridSize, HistoryRetentionLimi
 import { normalizeScaleForUnits } from "@/lib/measurementUnits";
 import { DEFAULT_IMPERIAL_GRID_BLOCK_PRESET, DEFAULT_METRIC_GRID_BLOCK_PRESET, DEFAULT_EDGE_LINE_COLOR, DEFAULT_LIGHT_AZIMUTH, DEFAULT_LIGHT_ELEVATION, DEFAULT_SKETCH_BACKGROUND, DEFAULT_SKETCH_GRID_COLOR, DEFAULT_SKETCH_PLATE_COLOR, DEFAULT_WORKPLANE_BACKGROUND, DEFAULT_WORKPLANE_GRID_COLOR, DEFAULT_WORKPLANE_SURFACE_COLOR, inchGridPresetMm } from "@/lib/workplaneGrid";
 import { isThreadProfile } from "@/lib/threadProfiles";
+import { MAX_TEXT_LENGTH } from "@/lib/textLength";
 import { normalizeHexColor } from "@/lib/coloredImport";
 import { normalizePlateNames } from "@/lib/buildPlateNames";
 import { TORUS_MAX_TUBE_RATIO, TORUS_MIN_TUBE_RATIO } from "@/lib/torusShape";
@@ -88,6 +89,7 @@ export const DEFAULT_WORKPLANE_WORKSPACE: WorkplaneWorkspaceSettings = {
   doubleClickCentersView: true,
   objectSnap: true,
   stlAsDownload: false,
+  lylAsDownload: false,
   confirmTabClose: false,
   dimensionsAlwaysVisible: true,
   dimensionAxisColors: false,
@@ -425,6 +427,13 @@ export function normalizeShapeCustomizations(value: unknown, fallback: ShapeCust
       entry.screwHoleHeadDepth = optionalShapeNumber(source.screwHoleHeadDepth, fallbackEntry?.screwHoleHeadDepth, 0.1, MAX_CUSTOM_SHAPE_DIMENSION);
       entry.screwHoleAngle = optionalShapeNumber(source.screwHoleAngle, fallbackEntry?.screwHoleAngle, 30, 150);
     }
+    if (kind === "counterbore" || kind === "countersink" || kind === "doubleCountersink") {
+      // A slotted hole and a recessed head (Discussion #1531), so a shape made through the AI bridge keeps them.
+      entry.screwHoleSlot = typeof source.screwHoleSlot === "boolean" ? source.screwHoleSlot : fallbackEntry?.screwHoleSlot;
+    }
+    if (kind === "countersink" || kind === "doubleCountersink") {
+      entry.screwHoleRecess = optionalShapeNumber(source.screwHoleRecess, fallbackEntry?.screwHoleRecess, 0, MAX_CUSTOM_SHAPE_DIMENSION);
+    }
     if (kind === "cylinder" || kind === "counterbore" || kind === "countersink") {
       // A drill point at the bottom of a blind hole (Discussion #621); 0 or less stands for a flat bottom, so a patch can switch it back.
       entry.drillPointAngle = typeof source.drillPointAngle === "number" && source.drillPointAngle <= 0
@@ -577,6 +586,7 @@ export function normalizeShapeCustomizations(value: unknown, fallback: ShapeCust
     if (kind === "roundedBox") {
       entry.cornerFillet = optionalShapeNumber(source.cornerFillet, fallbackEntry?.cornerFillet, 0, MAX_CUSTOM_SHAPE_DIMENSION / 2);
       entry.topBottomFillet = optionalShapeNumber(source.topBottomFillet, fallbackEntry?.topBottomFillet, 0, MAX_CUSTOM_SHAPE_DIMENSION / 2);
+      entry.bottomFillet = optionalShapeNumber(source.bottomFillet, fallbackEntry?.bottomFillet, 0, MAX_CUSTOM_SHAPE_DIMENSION / 2);
       entry.roundedBoxQuality = optionalShapeNumber(source.roundedBoxQuality, fallbackEntry?.roundedBoxQuality, 1, 32, true);
     }
     if (kind === "bentTube") {
@@ -596,7 +606,7 @@ export function normalizeShapeCustomizations(value: unknown, fallback: ShapeCust
       entry.bentTubeQuality = optionalShapeNumber(source.bentTubeQuality, fallbackEntry?.bentTubeQuality, 12, 96, true);
     }
     if (kind === "text") {
-      entry.text = optionalShapeText(source.text, fallbackEntry?.text, 24);
+      entry.text = optionalShapeText(source.text, fallbackEntry?.text, MAX_TEXT_LENGTH);
       entry.font = source.font === undefined
         ? fallbackEntry?.font
         : ["Multilanguage", "Sans", "Serif", "Script", "Monospace", "Rounded", "Stencil"].includes(source.font)
@@ -869,6 +879,7 @@ export function normalizeWorkspaceSettings(value: unknown, fallback: WorkplaneWo
     doubleClickCentersView: booleanOrDefault(candidate.doubleClickCentersView, fallback.doubleClickCentersView),
     objectSnap: booleanOrDefault(candidate.objectSnap, fallback.objectSnap),
     stlAsDownload: booleanOrDefault(candidate.stlAsDownload, fallback.stlAsDownload),
+    lylAsDownload: booleanOrDefault(candidate.lylAsDownload, fallback.lylAsDownload),
     confirmTabClose: booleanOrDefault(candidate.confirmTabClose, fallback.confirmTabClose),
     dimensionsAlwaysVisible: booleanOrDefault(candidate.dimensionsAlwaysVisible, fallback.dimensionsAlwaysVisible),
     dimensionAxisColors: booleanOrDefault(candidate.dimensionAxisColors, fallback.dimensionAxisColors),

@@ -82,10 +82,12 @@ La IA trabaja con las mismas funciones que tú, por el mismo camino que sigues c
 | Herramienta | Qué hace |
 | --- | --- |
 | `layerling_list_editors` | lista las pestañas abiertas del editor |
+| `layerling_rename_project` | da un nombre al proyecto, como el lápiz junto al nombre del proyecto |
 | `layerling_open_editor` | abre una pestaña nueva del editor en tu navegador predeterminado y espera a que se conecte (solo en tu propio ordenador) |
 | `layerling_read_scene` | lee la escena, la selección, las unidades y las medidas exactas de todos los objetos |
 | `layerling_list_objects` | lista todos los objetos con sus medidas, posición, giro e id |
 | `layerling_select_objects` | selecciona objetos |
+| `layerling_hide_others` | oculta todo salvo la selección o los objetos indicados, en un solo paso de deshacer |
 | `layerling_delete_objects` | elimina objetos |
 | `layerling_move_object` | mueve un objeto a otro lugar de la lista de objetos |
 | `layerling_create_shape` | crea una forma: caja, cilindro, texto (también curvado), rosca, engranaje, cuerpo de boceto y todas las demás |
@@ -101,6 +103,9 @@ La IA trabaja con las mismas funciones que tú, por el mismo camino que sigues c
 | `layerling_perforate_face` | corta un patrón de orificios en una cara plana o alrededor de la pared de un cilindro, un tubo o un taladro; los orificios se quedan como orificios agrupados con el cuerpo |
 | `layerling_sweep_sketch` | hace un barrido de una sección rectangular o redonda a lo largo de una trayectoria de puntos, como un único cuerpo exacto; una trayectoria cerrada da un anillo |
 | `layerling_push_face` | empuja hacia fuera una cara plana o abre un hueco en ella, con un desfase hacia dentro desde la arista y un radio de esquina; la parte nueva es un cuerpo de boceto agrupado con el cuerpo, o un cuerpo independiente con `separate` |
+| `layerling_paint` | pinta partes de un cuerpo en colores propios para imprimir en varios colores (Pintar): rellenar una cara hasta sus aristas vivas, una mancha redonda o un lazo trazado en una vista plana; borrar, quitar todo; se guarda con el cuerpo y se escribe en un 3MF como caras pintadas |
+| `layerling_support_rib` | pone un nervio de soporte fino bajo la cara inferior de una pieza impresa inclinada sobre una arista, con puentes de una capa de alto (Nervio de soporte) |
+| `layerling_stencil_bridges` | sujeta las partes de una placa atravesada por un texto que se caerían, con puentes agrupados con la placa, del ancho y alto indicados (Puentes de plantilla) |
 | `layerling_mate_faces` | lleva una cara de un objeto contra una cara de otro, cara contra cara o a ras, o pone dos caras redondas en un mismo eje |
 | `layerling_open_group` | abre un grupo para poder cambiar sus piezas una a una, también un grupo dentro de otro abierto |
 | `layerling_close_group` | lo vuelve a cerrar («Listo») o cancela |

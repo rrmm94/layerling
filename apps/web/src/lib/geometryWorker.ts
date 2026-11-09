@@ -3,7 +3,7 @@ import { checkClearance, type ClearanceOptions, type ClearanceResult } from "@/l
 import { buildGroupedShapeFromSelection, exportSolidVolume, faceReadJoins, faceReadPositions, previewSplitConnectors, splitShapeIfCrossed, splitShapesByPlane, type ExportSolidVolume, type GroupBuildResult, type SplitConnectorPreview, type SplitShapesOutcome } from "@/lib/editorBooleans";
 import { packValue, packedTransfer, unpackValue } from "@/lib/geometryTransfer";
 import { articulateShapes, type FlexiOptions, type FlexiShapesResult } from "@/lib/flexiJoints";
-import { lidForShapes, type LidOptions, type LidShapeResult } from "@/lib/lidTool";
+import { lidForShapes, lidTopForShapes, type LidOptions, type LidShapeResult } from "@/lib/lidTool";
 import { checkPrint, type PrintCheckOptions, type PrintCheckResult } from "@/lib/printCheck";
 import { resultMeshes, type GeometryTask, type GeometryWorkerRequest, type GeometryWorkerResponse } from "@/lib/geometryWorkerTypes";
 import { gridfinityHasLabelText } from "@/lib/gridfinityGeometry";
@@ -13,7 +13,7 @@ import type { ModelSplitPlane } from "@/lib/modelSplit";
 import type { SplitConnectorOptions } from "@/lib/splitConnectors";
 import { simplifyTrianglePositions, type SimplifiedMesh, type SimplifyOptions } from "@/lib/meshSimplify";
 import { importedShapesFromObj, type ObjImportResult } from "@/lib/objImport";
-import { importedShapeFromStl } from "@/lib/stlImport";
+import { importedShapeFromStl, type StlReadOptions } from "@/lib/stlImport";
 import { importedShapesFromStepFile, type StepFileImport } from "@/lib/stepFileImport";
 import type { StepExportResult } from "@/lib/stepExport";
 import type { WorkplaneShape } from "@/types/layerling";
@@ -317,12 +317,23 @@ export function lidForShapesOffThread(targets: readonly WorkplaneShape[], option
 }
 
 /**
+ * lidTopForShapes (lib/lidTool.ts) off the page: the body's top as a standard's screw lid measures it, which the lid
+ * panel shows while it is open (issue #1482). Quiet, as the warm-up is: the panel says it is measuring. A measurement the
+ * signal calls off (the body changed) never answers; one that times out is no measurement.
+ */
+export function lidTopOffThread(targets: readonly WorkplaneShape[], signal?: AbortSignal): ReturnType<typeof lidTopForShapes> {
+  const onPage = () => lidTopForShapes([...targets]);
+  if (containsText([...targets])) return onPage();
+  return runGeometryTask("lidTop", { targets: [...targets] }, onPage, () => null, signal, true);
+}
+
+/**
  * An STL file read off the page (importedShapeFromStl in lib/stlImport.ts): reading a 300,000-triangle
  * file held the page for over a second. The import window shows its own progress, so this says
  * nothing of its own.
  */
-export function importedShapeFromStlOffThread(fileName: string, buffer: ArrayBuffer): Promise<WorkplaneShape> {
-  return runGeometryTask("stl", { fileName, buffer }, async () => importedShapeFromStl(fileName, buffer), () => {
+export function importedShapeFromStlOffThread(fileName: string, buffer: ArrayBuffer, options: StlReadOptions = {}): Promise<WorkplaneShape> {
+  return runGeometryTask("stl", { fileName, buffer, options }, async () => importedShapeFromStl(fileName, buffer, options), () => {
     throw new Error(t("status.computeTimedOut"));
   }, undefined, true);
 }
@@ -333,7 +344,8 @@ export function importedShapeFromStlOffThread(fileName: string, buffer: ArrayBuf
  */
 export function importedShapesFromStepOffThread(fileName: string, buffer: ArrayBuffer): Promise<StepFileImport> {
   return runGeometryTask("step", { fileName, buffer }, async () => importedShapesFromStepFile(fileName, buffer), () => {
-    throw new Error(t("status.computeTimedOut"));
+    // A file the kernel gets stuck on (a damaged one, #286) says so, not "fewer or simpler objects".
+    throw new Error(t("status.importStepTimedOut", { minutes: Math.round(GEOMETRY_WORKER_TIMEOUT_MS / 60_000) }));
   }, undefined, true);
 }
 

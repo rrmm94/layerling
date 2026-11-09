@@ -82,10 +82,12 @@ Die KI arbeitet mit denselben Funktionen wie du, sie läuft über denselben Weg 
 | Werkzeug | Was es tut |
 | --- | --- |
 | `layerling_list_editors` | listet die offenen Editor-Tabs auf |
+| `layerling_rename_project` | gibt dem Projekt einen Namen, wie der Stift neben dem Projektnamen |
 | `layerling_open_editor` | öffnet einen neuen Editor-Tab in deinem Standardbrowser und wartet, bis er verbunden ist (nur auf deinem eigenen Rechner) |
 | `layerling_read_scene` | liest Szene, Auswahl, Einheiten und die genauen Maße aller Objekte |
 | `layerling_list_objects` | listet alle Objekte mit Maßen, Lage, Drehung und Kennung |
 | `layerling_select_objects` | wählt Objekte aus |
+| `layerling_hide_others` | blendet alles außer der Auswahl oder den genannten Objekten aus, in einem Rückgängig-Schritt |
 | `layerling_delete_objects` | löscht Objekte |
 | `layerling_move_object` | verschiebt ein Objekt an eine andere Stelle der Objektliste |
 | `layerling_create_shape` | legt eine Form an: Quader, Zylinder, Text (auch gebogen), Gewinde, Zahnrad, Skizzenkörper und alle anderen |
@@ -101,6 +103,9 @@ Die KI arbeitet mit denselben Funktionen wie du, sie läuft über denselben Weg 
 | `layerling_perforate_face` | schneidet ein Lochmuster in eine ebene Fläche oder rund um die Wand eines Zylinders, Rohrs oder einer Bohrung, die Löcher bleiben als Aussparungen mit dem Körper gruppiert |
 | `layerling_sweep_sketch` | zieht einen rechteckigen oder runden Querschnitt entlang eines Pfades aus Punkten als einen exakten Körper; ein geschlossener Pfad ergibt einen Ring |
 | `layerling_push_face` | zieht eine ebene Fläche heraus oder schneidet eine Tasche hinein, mit Rand zur Kante und Eckenradius; das neue Teil ist ein Skizzenkörper, mit dem Körper gruppiert, oder mit `separate` ein freier eigener Körper |
+| `layerling_paint` | bemalt Teile eines Körpers in eigenen Farben für den Mehrfarbdruck (Bemalen): eine Fläche bis an ihre scharfen Kanten füllen, ein runder Fleck oder ein Lasso in einer flachen Ansicht; radieren, alles abnehmen; mit dem Körper gespeichert und im 3MF als bemalte Flächen |
+| `layerling_support_rib` | stellt eine dünne Stützrippe unter die untere Fläche eines schräg auf einer Kante gedruckten Teils, mit Brücken von einer Schicht Höhe (Stützrippe) |
+| `layerling_stencil_bridges` | hält die Teile einer Platte mit durchgehendem Text, die herausfallen würden, mit Stegen, die mit der Platte gruppiert werden, so breit und hoch wie angegeben (Schablonenstege) |
 | `layerling_mate_faces` | legt eine Fläche eines Objekts an die Fläche eines anderen, gegeneinander oder bündig, oder bringt zwei runde Flächen auf eine Achse |
 | `layerling_open_group` | öffnet eine Gruppe, damit ihre Teile einzeln änderbar sind, auch eine Gruppe in einer geöffneten |
 | `layerling_close_group` | schließt sie wieder („Fertig“) oder bricht ab |

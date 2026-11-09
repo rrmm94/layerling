@@ -100,7 +100,7 @@ Dokler delovna ravnina leži na ploskvi, se ob {{ui:camera.placeWorkplane}} poka
 Ko načrt vsebuje več, kot se natisne na eno ploščo, na primer škatlo s pokrovom in vložki, ima lahko več tiskalnih plošč. Kliknite {{ui:editor.tool.buildPlates}} v skupini {{ui:editor.group.arrange}} ali izberite {{ui:plates.moveTo}} v meniju desnega klika na telo. Na dnu pogleda se pojavi vrstica z gumbom za vsako ploščo; število na njem pove, koliko teles stoji na plošči.
 
 - Vsaka plošča je velika kot delovna ravnina, plošče pa ležijo druga ob drugi desno od prve, 20 mm narazen. Telo spada k plošči, na kateri stoji sredina njegovega tlorisa, zato ga z vlečenjem na drugo stran postavite na drugo ploščo. Načrt ima do 12 plošč.
-- Klik na ploščo v vrstici jo pokaže in nove oblike nato pristanejo na njej. {{ui:plates.showAll}} pokaže vse. Dvojni klik na ploščo ali {{ui:plates.rename}} ji da ime, na primer »Pokrov«, ki je napisano na plošči.
+- Klik na ploščo v vrstici jo pokaže in nove oblike in uvožene datoteke nato pristanejo na njej. {{ui:plates.showAll}} pokaže vse. Dvojni klik na ploščo ali {{ui:plates.rename}} ji da ime, na primer »Pokrov«, ki je napisano na plošči.
 - {{ui:plates.moveLeft}} in {{ui:plates.moveRight}} spremenita vrstni red, telesa se premikajo s svojo ploščo. {{ui:plates.remove}} odstrani dejavno ploščo; njena telesa gredo na prvo ploščo na isto mesto.
 - {{ui:plates.arrange}} razporedi izbrana telesa, ali vsa, vrsto za vrsto po ploščah, največja najprej, 5 mm narazen, in dodaja plošče, dokler so potrebne. Telo, večje od plošče, ostane na mestu.
 - Z izbranim tiskalnikom se vsako telo preveri glede na svojo ploščo, višina tiska pa se šteje od najnižjega telesa na tej plošči. Plošča s telesom, ki ne gre nanjo, pokaže svoje število rdeče.
@@ -111,6 +111,7 @@ Okno za izvoz nato ponudi {{ui:export.plates}}: vse plošče v eni datoteki, dru
 ## Mreža in pripenjanje
 
 Mreža kaže velikost plošče. Spodaj desno je **pripenjanje**: premikanje in spreminjanje velikosti se zaskočita v korakih te velikosti, na primer 1 mm. Za drobno delo ga nastaviš manjšega, za grobo razporejanje večjega. {{ui:editor.tool.snapToGrid}} v orodni vrstici naknadno pomakne izbrane oblike na najbližje presečišče mreže. Pri premikanju se oblike poleg tega zaskočijo na druge oblike, glej [Izbiranje in razporejanje](chapter:izbiranje-in-razporejanje).
+Kratek klik s srednjo miškino tipko, brez premikanja miške, odpre meni koraka pripenjanja tik ob kazalcu, tudi v skici; vlečenje s pritisnjeno srednjo tipko še naprej premika pogled.
 
 > **Namig:** Ne vrti več pogleda, ko deleže natančno postavljaš drug ob drugega. S številskimi tipkami preklopi na raven pogled od zgoraj ali od spredaj in s [[O]] preklopi na ploski prikaz. Tako takoj vidiš, ali sta dva roba res poravnana.
 
@@ -118,15 +119,23 @@ Mreža kaže velikost plošče. Spodaj desno je **pripenjanje**: premikanje in s
 
 Zobnik v naslovni vrstici ({{ui:editor.workspaceSettings}}) odpre nastavitve. Levo je pet področij: {{ui:workspace.appearance}}, {{ui:workspace.measurement}}, {{ui:workspace.workplane}}, {{ui:workspace.shapeDefaults}} in {{ui:workspace.history}}. Sprememba velja takoj. {{ui:workspace.makeDefault}} spodaj shrani trenutne nastavitve kot privzete, tako da nov načrt začne z njimi. Odprta datoteka prinese svoje nastavitve; {{ui:workspace.useMyDefault}} poleg tega uporabi tvoje shranjene barve, mrežo in ostalo na odprtem načrtu in pri tem obdrži njegove enote. Če tvoje privzete nastavitve vsebujejo tiskalnik, pride zraven tudi velikost njegove plošče; brez tiskalnika načrt obdrži svojo ploščo in tiskalnik. {{ui:workspace.close}} zgoraj desno okno zapre. Ta del gre skozi nastavitve eno za drugo.
 
+{{ui:workspace.exportSettings}} shrani nastavitve okna v datoteko (layerling-settings-<datum>.json): barve, mrežo, sence, kamero in privzete vrednosti oblik skupaj s temo, velikostjo orodne vrstice, kotom kocke pogleda, barvami oblik in režo vsakega tiskalnika. Na drugem računalniku ali po izgubi podatkov brskalnika {{ui:workspace.importSettings}} datoteko znova prebere: postane tvoja privzeta nastavitev za nove načrte in se uporabi na odprtem načrtu kot {{ui:workspace.useMyDefault}}. Tudi tvoje lastne tipke iz bližnjic gredo zraven.
+
 ### Videz: tema, orodna vrstica in kocka
 
 {{ui:workspace.theme}} izbere barvno shemo celotnega programa: {{ui:workspace.themeSystem}} sledi računalniku, poleg tega so {{ui:workspace.themeLight}}, {{ui:workspace.themeDark}} in {{ui:workspace.themeGraphite}}. Zamenjaš jo lahko tudi zgoraj desno v urejevalniku.
 
-{{ui:workspace.toolbarSize}} pod {{ui:workspace.appearance}} naredi gumbe vrstice zgoraj, njen meni oblik, vrstico pogleda levo in ploščo lastnosti desno manjše ali večje: {{ui:workspace.toolbarSizeSmall}}, {{ui:workspace.toolbarSizeMedium}} (kot doslej) ali {{ui:workspace.toolbarSizeLarge}}. Majhna pusti na prenosniku več prostora za delovno ravnino, velika je lažje zadeti na velikem zaslonu ali s prstom. Z velikimi gumbi gredo skupine vrstice v drugo vrstico, če je okno zanje preozko. Velikost si zapomni ta brskalnik in velja za vsak načrt.
+{{ui:workspace.toolbarSize}} pod {{ui:workspace.appearance}} naredi gumbe vrstice zgoraj, njen meni oblik, vrstico pogleda levo in ploščo lastnosti desno manjše ali večje: {{ui:workspace.toolbarSizeSmall}}, {{ui:workspace.toolbarSizeMedium}} (kot doslej) ali {{ui:workspace.toolbarSizeLarge}}. Majhna pusti na prenosniku več prostora za delovno ravnino, velika je lažje zadeti na velikem zaslonu ali s prstom. Z velikimi gumbi gredo skupine vrstice v drugo vrstico, če je okno zanje preozko. Velikost je na zavihku {{ui:workspace.ribbon}} v nastavitvah; zapomni si jo ta brskalnik in velja za vsak načrt.
 
 {{ui:workspace.shapeColors}} na slikah knjižnice oblik pokaže barvo, s katero začne nova oblika (barvo njene vrste ali tisto, ki si jo shranil z {{ui:inspector.saveDefaults}}). Če imaš raje sive slike, to izklopi; brskalnik si izbiro zapomni.
 
 {{ui:workspace.viewCubePosition}} pod {{ui:workspace.appearance}} postavi kocko za usmerjanje pogleda v drug kot delovne površine: {{ui:workspace.viewCubePositionTopLeft}} (kot doslej), {{ui:workspace.viewCubePositionTopRight}}, {{ui:workspace.viewCubePositionBottomLeft}} ali {{ui:workspace.viewCubePositionBottomRight}}. V vsakem kotu razen zgoraj levo se vrstica pogleda pomakne navzgor na mesto, ki ga je kocka izpraznila. Spodaj desno stoji kocka tik nad gumbom {{ui:inspector.snapGrid}}. Dokler so desno odprte lastnosti oblike, se kocka na desni strani umakne levo od njih. Kot si zapomni ta brskalnik in velja za vsak načrt. V ozkem oknu, na primer na telefonu, je nastavitev skrita in kocka ostane zgoraj levo.
+
+### Videz: gumbi v orodni vrstici
+
+{{ui:workspace.ribbonButtons}} odstrani iz orodne vrstice skupine in gumbe, ki jih nikoli ne uporabljaš. Klikni skupino, da odpreš njen seznam: {{ui:workspace.ribbonGroupShown}} odstrani celo skupino, kljukica ob gumbu samo ta gumb. {{ui:workspace.ribbonShowAll}} vrne vse nazaj. Skupina brez gumbov izgine, druge se pomaknejo naprej, tako da v eno vrsto gre več orodne vrstice.
+
+Kar odstraniš, manjka samo v orodni vrstici: iskanje ukazov ([[Ctrl]]+[[K]]) to še najde in njegova tipka to še zažene. Puščici ob skupini jo premakneta po seznamu navzgor ali navzdol in tako po orodni vrstici; {{ui:workspace.ribbonResetOrder}} povrne prvotni vrstni red. Puščici ob gumbu ga enako premakneta znotraj skupine; v skupini {{ui:editor.group.modify}} ostane v svojem poimenovanem razdelku. Skupina Oblike in Pomoč ostaneta vedno, Oblike pa obdržijo svoje mesto za prvima dvema skupinama. Izbiro si zapomni ta brskalnik in gre tudi v datoteko iz {{ui:workspace.exportSettings}}. Velja za 3D-urejevalnik; skica ima svojo vrstico.
 
 ### Videz: hitri način
 
