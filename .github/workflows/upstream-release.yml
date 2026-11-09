@@ -1,0 +1,53 @@
+name: Neue Layerling-Releases übernehmen
+
+on:
+  schedule:
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-release
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Neuesten Original-Release ermitteln
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api repos/henmedia/layerling/releases/latest --jq .tag_name)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          git fetch https://github.com/henmedia/layerling.git \
+            "refs/tags/$tag"
+          echo "sha=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Release mit dem Fork zusammenführen
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-ff --no-edit "$RELEASE_SHA"
+
+      - name: Pull Request erstellen oder aktualisieren
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: update/upstream-release
+          base: main
+          title: "Layerling auf ${{ steps.release.outputs.tag }} aktualisieren"
+          body: |
+            Übernimmt den neuesten Original-Release.
+            Vor dem Zusammenführen die Tests und Klassenraum-Funktionen prüfen.
+          delete-branch: true
