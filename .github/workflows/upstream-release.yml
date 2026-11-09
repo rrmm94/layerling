@@ -39,7 +39,28 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git merge --no-ff --no-edit "$RELEASE_SHA"
+          if ! git merge --no-ff --no-edit "$RELEASE_SHA"; then
+            python3 <<'PYTHON'
+          from pathlib import Path
+          import re, subprocess
+          file = 'apps/web/src/components/LayerlingEditor.tsx'
+          unmerged = subprocess.check_output(['git', 'diff', '--name-only', '--diff-filter=U'], text=True).splitlines()
+          if unmerged != [file]:
+              raise SystemExit('Weitere Merge-Konflikte gefunden; manuelle Prüfung erforderlich: ' + ', '.join(unmerged))
+          p = Path(file)
+          text = p.read_text()
+          pattern = r'<<<<<<< HEAD\n(.*?)=======\n(.*?)>>>>>>> [^\n]+\n'
+          matches = list(re.finditer(pattern, text, re.S))
+          ours = 'import { editorStorage, scopedKey, classroomWorkspace, registerClassroomSaveGuard } from "@/lib/classroom/client";'
+          theirs = 'import { watchAutoTitles } from "@/lib/autoButtonTitles";'
+          if len(matches) != 1 or matches[0][1].strip() != ours or matches[0][2].strip() != theirs:
+              raise SystemExit('Unbekannter Konflikt; keine automatische Auflösung.')
+          text = re.sub(pattern, ours + '\n' + theirs + '\n', text, count=1, flags=re.S)
+          p.write_text(text)
+          subprocess.run(['git', 'add', file], check=True)
+          PYTHON
+            git commit --no-edit
+          fi
 
       - name: Pull Request erstellen oder aktualisieren
         uses: peter-evans/create-pull-request@v7
